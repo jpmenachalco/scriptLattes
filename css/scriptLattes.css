@@ -1,0 +1,103 @@
+/* scriptLattes V9 */
+body {
+    background-color: #ffffff;
+    color: #000000;
+    margin-left: 2%;
+    margin-right: 2%;
+    font-family: 'Roboto', sans-serif;
+    font-size: 1em;
+    text-align: justify;
+}
+
+td {
+    font-family: 'Roboto', sans-serif;
+    font-size: 1em;
+    text-align: justify;
+}
+
+td.centered {
+    font-family: 'Roboto', sans-serif;
+    font-size: 1em;
+    text-align: center;
+}
+
+
+
+h1,h2,h3,h4,h5,h6 {
+    color: #000000;
+}
+h1 {
+    font-size: 150%;
+}
+h2 {
+    font-size: 140%;
+}
+h3 {
+    font-size: 130%;
+}
+
+a {
+    background-color: transparent;
+    text-decoration: none;
+}
+
+a:link {
+    color: #000099;
+}
+
+a:visited {
+    color: #000099;
+}
+
+a:hover {
+    background-color: #B2C9DB;
+}
+
+#footer {
+    clear: both;
+    background: #CCCCCC;
+    color: #000000;
+    font-size: 0.9em;
+    text-align: justify;
+    margin:0 auto;
+	padding: 10px 10px 10px 10px;
+}
+
+#header {
+    clear: both;
+    background: #CCCCCC;
+    color: #000000;
+    margin:0 auto;
+	text-align: center;
+	padding: 10px 10px 10px 10px;
+}
+
+#header2 {
+    clear: both;
+    background: #CCCCCC;
+    color: #000000;
+    margin:0 auto;
+	text-align: left;
+	padding: 10px 10px 10px 10px;
+}
+
+#list {
+    clear: both;
+    background: #E0E0E0;
+    color: #000000;
+    font-size: 0.8em;
+    text-align: justify;
+    margin:0 auto;
+	padding: 1px 1px 1px 1px;
+    margin-left: 0; 
+    margin-right: 0;
+}
+
+.projects {
+    color: #003300;
+    font-weight: bold;
+}
+
+.area {
+    color: #ADD8E6;
+}

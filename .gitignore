@@ -1,0 +1,8 @@
+venv/
+env/
+**/__pycache__/
+*.py.bak
+*.pyc
+exemplo/cache/
+exemplo/teste-01/
+exemplo/teste-02/
