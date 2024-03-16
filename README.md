@@ -9,6 +9,8 @@ Se não tiver, você pode baixá-lo em [python.org](https://www.python.org/downl
 - Baixe o Chromedriver correspondente à versão do seu navegador. 
 Você pode encontrá-lo em [Chromedriver](https://chromedriver.chromium.org/downloads).
 
+- É necessário dar chmod 755 no chrome driver para ele funcionar adequadamente.
+
 ## Configuração do Ambiente Virtual
 
 
