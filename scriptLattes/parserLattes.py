@@ -372,7 +372,7 @@ class ParserLattes(HTMLParser):
                     break
 
             for name, value in attributes:
-                if name=='class' and (value=='transform' or value=='layout-cell-pad-5' or value=='layout-cell-pad-6'): #update on Lattes HTML format 20/03/2024
+                if name=='class' and (value=='transform' or value=='layout-cell-pad-5' or value=='layout-cell-pad-6' or value=='layout-cell layout-cell-11'): #update on Lattes HTML format 19/04/2024
                     if self.achouNomeEmCitacoes:
                         self.salvarNomeEmCitacoes = 1
                         self.item = ''
