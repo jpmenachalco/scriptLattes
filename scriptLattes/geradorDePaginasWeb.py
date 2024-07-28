@@ -53,7 +53,7 @@ class GeradorDePaginasWeb:
         # geracao de arquivo RIS com as publicacoes
         if self.grupo.obterParametro('relatorio-salvar_publicacoes_em_formato_ris'):
             prefix = self.grupo.obterParametro('global-prefixo') + '-' if not self.grupo.obterParametro('global-prefixo') == '' else ''
-            self.arquivoRis = open(self.dir + "/" + prefix + "publicacoes.ris", 'w')
+            self.arquivoRis = open(self.dir + "/" + prefix + "publicacoes.ris", 'w', encoding='utf8')
 
         self.gerar_pagina_de_membros()
         self.gerar_pagina_de_metricas()
@@ -1754,7 +1754,7 @@ class GeradorDePaginasWeb:
 
 
     def salvarPagina(self, nome, conteudo):
-        file = open(os.path.join(self.dir, nome), 'w')
+        file = open(os.path.join(self.dir, nome), 'w', encoding='utf8')
         file.write(conteudo)
         file.close()
 
