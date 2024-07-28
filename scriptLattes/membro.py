@@ -209,14 +209,14 @@ class Membro:
             if os.path.exists(cvPath):
                 #arquivoH = open(cvPath, encoding='iso-8859-1')
                 #arquivoH = open(cvPath, encoding='utf-8')
-                arquivoH = open(cvPath)
+                arquivoH = open(cvPath, encoding='utf8')
                 cvLattesHTML = arquivoH.read()
                 if self.idMembro!='':
                     print("(*) Utilizando CV armazenado no cache: "+cvPath)
             else:
                 print("(*) Baixando CV no cache: "+cvPath)
                 baixaCVLattes(self.idLattes, self.diretorioCache)
-                arquivoH = open(cvPath, encoding='utf-8')
+                arquivoH = open(cvPath, encoding='utf8')
                 #arquivoH = open(cvPath, encoding='iso-8859-1')
                 cvLattesHTML = arquivoH.read()
 
