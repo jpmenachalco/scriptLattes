@@ -762,6 +762,6 @@ class GeradorDeXML:
     def salvarXML(self, nome, conteudo):
         prefix = self.grupo.obterParametro('global-prefixo') + '-' if not self.grupo.obterParametro(
             'global-prefixo') == '' else ''
-        file = open(self.dir + "/" + prefix + nome, 'w')
+        file = open(self.dir + "/" + prefix + nome, 'w', encoding='utf8')
         file.write(conteudo)
         file.close()
