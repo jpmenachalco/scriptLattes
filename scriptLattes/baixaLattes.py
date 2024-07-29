@@ -10,6 +10,7 @@ import urllib.request, urllib.parse, urllib.error
 from selenium import webdriver
 from selenium.common.exceptions import InvalidArgumentException, TimeoutException
 from selenium.webdriver.chrome.service import Service
+import plataform
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -58,7 +59,14 @@ class LattesRobot:
         chrome_options.add_experimental_option('useAutomationExtension', False)
         chrome_options.add_experimental_option('prefs', {'download.default_directory': self.results_dir})
  
-        chrome_driver_path = os.path.abspath("chromedriver")
+        so = platform.system()
+        if so == 'Windows':
+            chrome_driver_path = os.path.abspath("chromedriver.exe")
+        elif so == 'Linux':
+            chrome_driver_path = os.path.abspath("chromedriver")
+        else:
+            print('Sistema Operacional não identificado')
+            
         service = Service(chrome_driver_path)
  
         try:
