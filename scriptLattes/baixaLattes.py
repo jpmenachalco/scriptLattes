@@ -10,7 +10,7 @@ import urllib.request, urllib.parse, urllib.error
 from selenium import webdriver
 from selenium.common.exceptions import InvalidArgumentException, TimeoutException
 from selenium.webdriver.chrome.service import Service
-import plataform
+import platform
 
 import warnings
 warnings.filterwarnings("ignore")
