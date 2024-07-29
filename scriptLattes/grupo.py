@@ -329,7 +329,7 @@ class Grupo:
 
         # gerando o arquivo GDF
         dir = self.obterParametro('global-diretorio_de_saida')
-        arquivo = open(dir + "/" + nomeArquivo, 'w')
+        arquivo = open(dir + "/" + nomeArquivo, 'w', encoding='utf8')
         arquivo.write(string)  # .encode("utf8","ignore"))
         arquivo.close()  
 
@@ -360,7 +360,7 @@ class Grupo:
 
         # gerando o arquivo JSON
         dir = self.obterParametro('global-diretorio_de_saida')
-        arquivo = open(dir + "/" + nomeArquivo, 'w')
+        arquivo = open(dir + "/" + nomeArquivo, 'w', encoding='utf8')
         arquivo.write(string)  # .encode("utf8","ignore"))
         arquivo.close()  
 
@@ -408,7 +408,7 @@ class Grupo:
         if type(conteudo) == bytes:
             conteudo = conteudo.decode() 
         dir = self.obterParametro('global-diretorio_de_saida')
-        arquivo = open(dir + "/" + nomeArquivo, 'w')
+        arquivo = open(dir + "/" + nomeArquivo, 'w', encoding='utf8')
         arquivo.write(conteudo)
         arquivo.close()
 
@@ -477,7 +477,7 @@ class Grupo:
 
     def salvarListaTXT(self, lista, nomeArquivo):
         dir = self.obterParametro('global-diretorio_de_saida')
-        arquivo = open(dir + "/" + nomeArquivo, 'w')
+        arquivo = open(dir + "/" + nomeArquivo, 'w', encoding='utf8')
 
         for i in range(0, len(lista)):
             elemento = lista[i]
@@ -488,7 +488,7 @@ class Grupo:
 
     def salvarMatrizTXT(self, matriz, nomeArquivo):
         dir = self.obterParametro('global-diretorio_de_saida')
-        arquivo = open(dir + "/" + nomeArquivo, 'w')
+        arquivo = open(dir + "/" + nomeArquivo, 'w', encoding='utf8')
         N = matriz.shape[0]
 
         for i in range(0, N):
