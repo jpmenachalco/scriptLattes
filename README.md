@@ -46,7 +46,7 @@ python3 scriptLattes.py exemplo/teste-01.config
 ```
 
 ## Comunicação
-- Temos uma área no Discord que pode ser útil para compartilhar dúvidas/sugestões [https://discord.gg/GKKJtU6NRD]
+- Temos uma área no Discord que pode ser útil para compartilhar dúvidas/sugestões [https://discord.gg/Xz8NZ3kBc3]
 - Contato direto: [jesus.mena@ufabc.edu.br]
 
 ## Como referenciar este software
