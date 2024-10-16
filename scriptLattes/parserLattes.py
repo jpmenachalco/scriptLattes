@@ -358,13 +358,20 @@ class ParserLattes(HTMLParser):
             self.salvarBolsaProdutividade = 1
             self.salvarNome = 0
 
-        if tag=='div':
-            self.citado = 0
-
+        if tag=='span':
             for name, value in attributes:
                 if name == 'cvuri':
                     self.parse_issn(value)
+                
+                if name == 'class' and (value == 'citacoes' or value == 'citado'):
+                    self.citado = 1
 
+                if name == 'cvuri' and self.citado:
+                    self.citado = 0
+                    self.complemento = value.replace("/buscatextual/servletcitacoes?", "")
+
+        if tag=='div':
+            self.citado = 0
 
             for name, value in attributes:
                 if name=='class' and value=='title-wrapper':
@@ -397,12 +404,6 @@ class ParserLattes(HTMLParser):
                         if not self.salvarParte3:
                             self.partesDoItem = []
 
-                if name == 'class' and (value == 'citacoes' or value == 'citado'):
-                    self.citado = 1
-
-                if name == 'cvuri' and self.citado:
-                    self.citado = 0
-                    self.complemento = value.replace("/buscatextual/servletcitacoes?", "")
 
 
         if tag=='h1' and self.umaUnidade:
@@ -1140,4 +1141,3 @@ def stripBlanks(s):
 def htmlentitydecode(s):                                                                               
     return re.sub('&(%s);' % '|'.join(name2codepoint),
         lambda m: chr(name2codepoint[m.group(1)]), s)
-
