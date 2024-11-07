@@ -196,9 +196,15 @@ class ResumoExpandidoEmCongresso:
             self.qualissimilar = ''
         s  = "resumoExpandidoEmCongresso\t"
         if nomeCompleto=="": # tratamento grupal
-            s +=  str(self.ano) +"\t"+ self.titulo +"\t"+ self.nomeDoEvento +"\t"+ self.autores +"\t"+ self.qualis +"\t"+ self.qualissimilar
+            s += (
+                f"{str(self.ano)}\t{self.doi}\t \t{self.titulo}\t \t"
+                f"{self.nomeDoEvento}\t{self.autores}\t{self.qualis}\t{self.qualissimilar}"
+            )
         else: # tratamento individual
-            s += nomeCompleto +"\t"+ str(self.ano) +"\t"+ self.titulo +"\t"+ self.nomeDoEvento +"\t"+ self.autores +"\t"+ self.qualis +"\t"+ self.qualissimilar
+            s += (
+                f"{nomeCompleto}\t{str(self.ano)}\t{self.doi}\t \t{self.titulo}\t \t"
+                f"{self.nomeDoEvento}\t{self.autores}\t{self.qualis}\t{self.qualissimilar}"
+            )
         return s
 
     # ------------------------------------------------------------------------ #
