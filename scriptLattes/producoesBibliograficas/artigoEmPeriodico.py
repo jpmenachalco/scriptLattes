@@ -267,9 +267,15 @@ class ArtigoEmPeriodico:
 
         # FIXME: self.qualis estava dando erro de conversão; remediado temporariamente usando str(); verificar se comportamento está correto
         if nomeCompleto=="": # tratamento grupal
-            s +=  str(self.ano) +"\t"+ self.issn + "\t"+ self.doi +"\t"+ self.titulo +"\t"+ self.revista +"\t"+ self.autores +"\t"+ str(self.qualis) +"\t"+ str(self.qualissimilar)
+            s += (
+                f"{str(self.ano)}\t{self.doi}\t{self.issn}\t{self.titulo}\t"
+                f"{self.revista}\t \t{self.autores}\t{self.qualis}\t{self.qualissimilar}"
+            )
         else: # tratamento individual
-            s += nomeCompleto +"\t"+ str(self.ano) + "\t"+ self.issn + "\t" + self.doi +"\t"+ self.titulo +"\t"+ self.revista +"\t"+ self.autores +"\t"+ str(self.qualis) +"\t"+ (self.qualissimilar)
+            s += (
+                f"{nomeCompleto}\t{str(self.ano)}\t{self.doi}\t{self.issn}\t{self.titulo}\t"
+                f"{self.revista}\t \t{self.autores}\t{self.qualis}\t{self.qualissimilar}"
+            )
         return s
 
 
