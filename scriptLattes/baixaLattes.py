@@ -3,15 +3,14 @@
 
 import argparse
 import bs4
-#import logging
 import time
 import os
 import urllib.request, urllib.parse, urllib.error
 from selenium import webdriver
-from selenium.common.exceptions import InvalidArgumentException, TimeoutException
+from selenium.common.exceptions import InvalidArgumentException, TimeoutException, WebDriverException
 from selenium.webdriver.chrome.service import Service
-import platform
 
+import platform
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -73,7 +72,6 @@ class LattesRobot:
             self.driver = webdriver.Chrome(service=service, options=chrome_options)
         except Exception as e:
             print(f"Erro ao inicializar o driver: {e}")
- 
 
 
     def collect_html_cvs(self, start, end):
@@ -97,6 +95,7 @@ class LattesRobot:
 
             if data:
                 fout.write(data)
+        
 
     def _execute_js(self, lids):
         self.driver.get(URL.format(lids[10]))
@@ -116,6 +115,8 @@ class LattesRobot:
                 return
 
         self.store_html(lids[self.lid_type], self.driver.page_source)
+
+
 
     def _get_lids_10_16(self, lid):
         lids = {10: '', 16: ''}
@@ -163,10 +164,7 @@ def __get_data(id_lattes, diretorio):
         rob.driver.quit()
 
 
-
-
 def baixaCVLattes(id_lattes, diretorio ):
-    
     # caso nao for baixado, tenta novamente ate 5 vezes
     count = 5
     while count>0:
@@ -178,3 +176,36 @@ def baixaCVLattes(id_lattes, diretorio ):
             count = count - 1
 
     #raise Exception("Nao foi possivel baixar o CV Lattes em 5 tentativas")
+    
+def baixaCVLattes(id_lattes, diretorio):
+    max_tentativas = 5
+    tentativas = 0
+
+    while tentativas < max_tentativas:
+        try:
+            __get_data(id_lattes, diretorio)
+        except WebDriverException as e:
+            if 'ERR_CONNECTION_REFUSED' in str(e):
+                print(f"Connection refused ao baixar {id_lattes}: dormindo 5 minutos antes de tentar novamente...")
+                time.sleep(300)  # 5 minutos
+                print(f"Retomando tentativa de download do CV Lattes: {id_lattes}")
+                # não conta essa como tentativa falha, volta ao início do loop
+                continue
+            else:
+                # qualquer outro erro, relança
+                raise
+
+        # se passou sem lançar exception, verifica se o arquivo foi salvo
+        destino = os.path.join(diretorio, id_lattes)
+        if os.path.exists(destino):
+            return
+        else:
+            tentativas += 1
+            print(f"Tentativa #{tentativas} falhou para {id_lattes}. Restam {max_tentativas - tentativas} tentativas.")
+
+    # se esgotou as tentativas sem sucesso
+    raise Exception(f"Não foi possível baixar o CV Lattes de {id_lattes} após {max_tentativas} tentativas.")
+
+
+
+

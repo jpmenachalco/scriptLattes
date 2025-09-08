@@ -1,30 +1,9 @@
 #!/usr/bin/python
 # encoding: utf-8
-# filename: parserLattes.py
-#
-# scriptLattes V8
-# Copyright 2005-2013: Jesús P. Mena-Chalco e Roberto M. Cesar-Jr.
-#  http://scriptlattes.sourceforge.net/
-#
-#
-#  Este programa é um software livre; você pode redistribui-lo e/ou 
-#  modifica-lo dentro dos termos da Licença Pública Geral GNU como 
-#  publicada pela Fundação do Software Livre (FSF); na versão 2 da 
-#  Licença, ou (na sua opinião) qualquer versão.
-#
-#  Este programa é distribuído na esperança que possa ser util, 
-#  mas SEM NENHUMA GARANTIA; sem uma garantia implicita de ADEQUAÇÂO a qualquer
-#  MERCADO ou APLICAÇÃO EM PARTICULAR. Veja a
-#  Licença Pública Geral GNU para maiores detalhes.
-#
-#  Você deve ter recebido uma cópia da Licença Pública Geral GNU
-#  junto com este programa, se não, escreva para a Fundação do Software
-#  Livre(FSF) Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-#
+
 
 import sys
 from html.entities import name2codepoint
-#from tidylib import tidy_document
 
 
 # ---------------------------------------------------------------------------- #
@@ -52,6 +31,7 @@ from .producoesTecnicas.produtoTecnologico import *
 from .producoesTecnicas.processoOuTecnica import *
 from .producoesTecnicas.trabalhoTecnico import *
 from .producoesTecnicas.outroTipoDeProducaoTecnica import *
+from .producoesTecnicas.entrevista import *
 
 from .producoesArtisticas.producaoArtistica import *
 
@@ -141,6 +121,7 @@ class ParserLattes(HTMLParser):
     achouProcessoOuTecnica = None
     achouTrabalhoTecnico = None
     achouOutroTipoDeProducaoTecnica = None
+    achouEntrevista = None
 
     achouPatente = None
     achouProgramaComputador = None
@@ -190,6 +171,7 @@ class ParserLattes(HTMLParser):
     listaProcessoOuTecnica = []
     listaTrabalhoTecnico = []
     listaOutroTipoDeProducaoTecnica = []
+    listaEntrevista = []
 
     listaPatente = []
     listaProgramaComputador = []
@@ -263,6 +245,7 @@ class ParserLattes(HTMLParser):
         self.listaProcessoOuTecnica = []
         self.listaTrabalhoTecnico = []
         self.listaOutroTipoDeProducaoTecnica = []
+        self.listaEntrevista = []
 
         self.listaPatente = []
         self.listaProgramaComputador = []
@@ -664,9 +647,12 @@ class ParserLattes(HTMLParser):
                                 self.listaTrabalhoTecnico.append(iessimoItem)
     
                             if self.achouOutroTipoDeProducaoTecnica:
-                                iessimoItem = OutroTipoDeProducaoTecnica(self.idMembro, self.partesDoItem,
-                                                                         self.relevante)
+                                iessimoItem = OutroTipoDeProducaoTecnica(self.idMembro, self.partesDoItem, self.relevante)
                                 self.listaOutroTipoDeProducaoTecnica.append(iessimoItem)
+                            
+                            if self.achouEntrevista:
+                                iessimoItem = Entrevista(self.idMembro, self.partesDoItem, self.relevante)
+                                self.listaEntrevista.append(iessimoItem)
 
                         if self.achouProducaoArtisticaCultural:
                             if self.achouOutraProducaoArtisticaCultural:
@@ -974,6 +960,7 @@ class ParserLattes(HTMLParser):
                     self.achouProcessoOuTecnica = 0
                     self.achouTrabalhoTecnico = 0
                     self.achouOutroTipoDeProducaoTecnica = 0
+                    self.achouEntrevista = 0
                 if 'Programas de computador sem registro'==dado:
                     self.salvarItem = 1
                     self.achouSoftwareComPatente = 0
@@ -982,6 +969,7 @@ class ParserLattes(HTMLParser):
                     self.achouProcessoOuTecnica = 0
                     self.achouTrabalhoTecnico = 0
                     self.achouOutroTipoDeProducaoTecnica = 0
+                    self.achouEntrevista = 0
                 if 'Produtos tecnológicos'==dado:
                     self.salvarItem = 1
                     self.achouSoftwareComPatente = 0
@@ -990,6 +978,7 @@ class ParserLattes(HTMLParser):
                     self.achouProcessoOuTecnica = 0
                     self.achouTrabalhoTecnico = 0
                     self.achouOutroTipoDeProducaoTecnica = 0
+                    self.achouEntrevista = 0
                 if 'Processos ou técnicas'==dado:
                     self.salvarItem = 1
                     self.achouSoftwareComPatente = 0
@@ -998,6 +987,7 @@ class ParserLattes(HTMLParser):
                     self.achouProcessoOuTecnica = 1
                     self.achouTrabalhoTecnico = 0
                     self.achouOutroTipoDeProducaoTecnica = 0
+                    self.achouEntrevista = 0
                 if 'Trabalhos técnicos'==dado:
                     self.salvarItem = 1
                     self.achouSoftwareComPatente = 0
@@ -1006,6 +996,7 @@ class ParserLattes(HTMLParser):
                     self.achouProcessoOuTecnica = 0
                     self.achouTrabalhoTecnico = 1
                     self.achouOutroTipoDeProducaoTecnica = 0
+                    self.achouEntrevista = 0
                 if 'Demais tipos de produção técnica'==dado:
                     self.salvarItem = 1
                     self.achouSoftwareComPatente = 0
@@ -1014,6 +1005,17 @@ class ParserLattes(HTMLParser):
                     self.achouProcessoOuTecnica = 0
                     self.achouTrabalhoTecnico = 0
                     self.achouOutroTipoDeProducaoTecnica = 1
+                    self.achouEntrevista = 0
+                if 'Entrevistas, mesas redondas, programas e comentários na mídia'==dado:
+                    self.salvarItem = 1
+                    self.achouSoftwareComPatente = 0
+                    self.achouSoftwareSemPatente = 0
+                    self.achouProdutoTecnologico = 0
+                    self.achouProcessoOuTecnica = 0
+                    self.achouTrabalhoTecnico = 0
+                    self.achouOutroTipoDeProducaoTecnica = 0
+                    self.achouEntrevista = 1
+
                 #if u'Demais trabalhos'==dado:
                 #	self.salvarItem = 0
                 #	self.achouSoftwareComPatente = 0
@@ -1025,7 +1027,7 @@ class ParserLattes(HTMLParser):
     
             if self.achouProducaoArtisticaCultural:
                 #if u'Produção artística/cultural'==dado:
-                if 'Outras produções artísticas/culturais'==dado or 'Artes Cênicas'==dado or 'Música'==dado:
+                if 'Outras produções artísticas/culturais'==dado or 'Artes Cênicas'==dado or 'Música'==dado or 'Artes Visuais'==dado or 'Demais trabalhos'==dado:
                     # separar as listas de producoes artisticas por tipos
                     self.salvarItem = 1
                     self.achouOutraProducaoArtisticaCultural = 1

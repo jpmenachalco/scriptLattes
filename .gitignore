@@ -1,8 +1,14 @@
+chromedriver
 venv/
 env/
 **/__pycache__/
 *.py.bak
 *.pyc
-exemplo/cache/
+cache/
 exemplo/teste-01/
 exemplo/teste-02/
+exemplo/teste-03/
+exemplo/inct-IdoF/
+exemplo/ensp2024/
+exemplo/ensp2024-termos1/
+exemplo/ensp2024-termos2/

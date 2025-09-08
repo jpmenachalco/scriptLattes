@@ -1,34 +1,11 @@
 #!/usr/bin/python
 #  encoding: utf-8
-#
-#
-#  scriptLattes
-#  Copyright http://scriptlattes.sourceforge.net/
-#
-#  Este programa é um software livre; você pode redistribui-lo e/ou 
-#  modifica-lo dentro dos termos da Licença Pública Geral GNU como 
-#  publicada pela Fundação do Software Livre (FSF); na versão 2 da 
-#  Licença, ou (na sua opinião) qualquer versão.
-#
-#  Este programa é distribuído na esperança que possa ser util, 
-#  mas SEM NENHUMA GARANTIA; sem uma garantia implicita de ADEQUAÇÂO a qualquer
-#  MERCADO ou APLICAÇÃO EM PARTICULAR. Veja a
-#  Licença Pública Geral GNU para maiores detalhes.
-#
-#  Você deve ter recebido uma cópia da Licença Pública Geral GNU
-#  junto com este programa, se não, escreva para a Fundação do Software
-#  Livre(FSF) Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-#
-#
 
 import time
 import os
-#import pandas
-#from lxml import etree
-from .baixaLattes import baixaCVLattes
-from .parserLattes import *
-from .parserLattesXML import *
-
+from scriptLattes.baixaLattes import baixaCVLattes
+from scriptLattes.parserLattes import *
+from scriptLattes.util import *
 
 class Membro:
     idLattes = None  # ID Lattes
@@ -51,8 +28,6 @@ class Membro:
     atualizacaoCV = ''
     foto = ''
     textoResumo = ''
-    ### xml = None
-
 
     itemsDesdeOAno = ''  # periodo global
     itemsAteOAno = ''  # periodo global
@@ -86,6 +61,7 @@ class Membro:
     listaProcessoOuTecnica = []
     listaTrabalhoTecnico = []
     listaOutroTipoDeProducaoTecnica = []
+    listaEntrevista = []
 
     # Patentes e registros
     listaPatente = []
@@ -113,11 +89,6 @@ class Membro:
     listaOCIniciacaoCientifica = []
     listaOCOutroTipoDeOrientacao = []
 
-    # Qualis
-    # tabelaQualisDosAnos = [{}]
-    # tabelaQualisDosTipos = {}
-    # tabelaQualisDasCategorias = [{}]
-
     # Eventos
     listaParticipacaoEmEvento = []
     listaOrganizacaoDeEvento = []
@@ -125,17 +96,13 @@ class Membro:
     rotuloCorFG = ''
     rotuloCorBG = ''
 
-    #tabela_qualis = pandas.DataFrame(columns=['ano', 'area', 'estrato', 'freq'])
-
     nomePrimeiraGrandeArea = ''
     nomePrimeiraArea       = ''
     instituicao            = ''
 
-    dicionarioDeGeolocalizacao = None
+    dicionarioDeTermos = None
 
-    ###def __init__(self, idMembro, identificador, nome, periodo, rotulo, itemsDesdeOAno, itemsAteOAno, xml=''):
-
-    def __init__(self, idMembro, identificador, nome, periodo, rotulo, itemsDesdeOAno, itemsAteOAno, diretorioCache, dicionarioDeGeolocalizacao=None):
+    def __init__(self, idMembro, identificador, nome, periodo, rotulo, itemsDesdeOAno, itemsAteOAno, diretorioCache, dicionarioDeTermos=None):
         self.idMembro = idMembro
         self.idLattes = identificador
         self.nomeInicial = nome
@@ -144,7 +111,7 @@ class Membro:
         self.rotulo = rotulo
         self.rotuloCorFG = '#000000'
         self.rotuloCorBG = '#FFFFFF'
-        self.dicionarioDeGeolocalizacao = dicionarioDeGeolocalizacao
+        self.dicionarioDeTermos = dicionarioDeTermos
 
         p = re.compile('[a-zA-Z]+')
 
@@ -184,53 +151,32 @@ class Membro:
 
     def carregarDadosCVLattes(self):
         cvPath = self.diretorioCache + '/' + self.idLattes
+        cvPath = self.diretorioCache + '/' + self.idLattes
 
-        if 'xml' in cvPath:
-            arquivoX = open(cvPath)
-            cvLattesXML = arquivoX.read()
-            arquivoX.close()
-
-            extended_chars = ''.join(chr(c) for c in range(127, 65536, 1))  # srange(r"[\0x80-\0x7FF]")
-            special_chars = ' -'''
-            cvLattesXML = cvLattesXML.encode().decode('iso-8859-1', 'replace') + extended_chars + special_chars
-            parser = ParserLattesXML(self.idMembro, cvLattesXML)
-
-            self.idLattes = parser.idLattes
-            self.url = parser.url
-            print("(*) Utilizando CV armazenado no cache: " + cvPath)
-
-        elif '0000000000000000' == self.idLattes:
-            # se o codigo for '0000000000000000' então serao considerados dados de pessoa estrangeira - sem Lattes.
-            # sera procurada a coautoria endogena com os outros membro.
-            # para isso é necessario indicar o nome abreviado no arquivo .list
-            return
-
+        if os.path.exists(cvPath):
+            #arquivoH = open(cvPath, encoding='iso-8859-1')
+            arquivoH = open(cvPath, encoding='utf8')
+            cvLattesHTML = arquivoH.read()
+            if self.idMembro!='':
+                print("Utilizando CV armazenado no cache: "+cvPath)
         else:
-            if os.path.exists(cvPath):
-                #arquivoH = open(cvPath, encoding='iso-8859-1')
-                #arquivoH = open(cvPath, encoding='utf-8')
-                arquivoH = open(cvPath, encoding='utf8')
-                cvLattesHTML = arquivoH.read()
-                if self.idMembro!='':
-                    print("(*) Utilizando CV armazenado no cache: "+cvPath)
-            else:
-                print("(*) Baixando CV no cache: "+cvPath)
-                baixaCVLattes(self.idLattes, self.diretorioCache)
-                arquivoH = open(cvPath, encoding='utf8')
-                #arquivoH = open(cvPath, encoding='iso-8859-1')
-                cvLattesHTML = arquivoH.read()
+            print("Baixando CV no cache: "+cvPath)
+            baixaCVLattes(self.idLattes, self.diretorioCache)
+            #arquivoH = open(cvPath, encoding='iso-8859-1')            
+            arquivoH = open(cvPath, encoding='utf8')
+            cvLattesHTML = arquivoH.read()
 
-            extended_chars = ''.join(chr(c) for c in range(127, 65536, 1))  # srange(r"[\0x80-\0x7FF]")
-            special_chars = ' -'''
-            #cvLattesHTML  = cvLattesHTML.encode().decode('ascii','replace')+extended_chars+special_chars                                          # Wed Jul 25 16:47:39 BRT 2012
-            cvLattesHTML = cvLattesHTML
-            parser = ParserLattes(self.idMembro, cvLattesHTML)
+        extended_chars = ''.join(chr(c) for c in range(127, 65536, 1))  # srange(r"[\0x80-\0x7FF]")
+        special_chars = ' -'''
+        #cvLattesHTML  = cvLattesHTML.encode().decode('ascii','replace')+extended_chars+special_chars                                          # Wed Jul 25 16:47:39 BRT 2012
+        cvLattesHTML = cvLattesHTML
+        parser = ParserLattes(self.idMembro, cvLattesHTML)
 
-            p = re.compile('[a-zA-Z]+')
-            if p.match(self.idLattes):
-                self.identificador10 = self.idLattes
-                self.idLattes = parser.identificador16
-                self.url = 'http://lattes.cnpq.br/' + self.idLattes
+        p = re.compile('[a-zA-Z]+')
+        if p.match(self.idLattes):
+            self.identificador10 = self.idLattes
+            self.idLattes = parser.identificador16
+            self.url = 'http://lattes.cnpq.br/' + self.idLattes
 
         # -----------------------------------------------------------------------------------------
         # Obtemos todos os dados do CV Lattes
@@ -270,6 +216,7 @@ class Membro:
         self.listaProcessoOuTecnica = parser.listaProcessoOuTecnica
         self.listaTrabalhoTecnico = parser.listaTrabalhoTecnico
         self.listaOutroTipoDeProducaoTecnica = parser.listaOutroTipoDeProducaoTecnica
+        self.listaEntrevista = parser.listaEntrevista
 
         # Patentes e registros
         self.listaPatente = parser.listaPatente
@@ -330,7 +277,7 @@ class Membro:
             self.instituicao = instituicao.replace("'","")
 
 
-    def filtrarItemsPorPeriodo(self):
+    def filtrarItemsPorPeriodoOuTermos(self):
         self.listaArtigoEmPeriodico = self.filtrarItems(self.listaArtigoEmPeriodico)
         self.listaLivroPublicado = self.filtrarItems(self.listaLivroPublicado)
         self.listaCapituloDeLivroPublicado = self.filtrarItems(self.listaCapituloDeLivroPublicado)
@@ -348,6 +295,7 @@ class Membro:
         self.listaProcessoOuTecnica = self.filtrarItems(self.listaProcessoOuTecnica)
         self.listaTrabalhoTecnico = self.filtrarItems(self.listaTrabalhoTecnico)
         self.listaOutroTipoDeProducaoTecnica = self.filtrarItems(self.listaOutroTipoDeProducaoTecnica)
+        self.listaEntrevista = self.filtrarItems(self.listaEntrevista)
 
         self.listaPatente = self.filtrarItems(self.listaPatente)
         self.listaProgramaComputador = self.filtrarItems(self.listaProgramaComputador)
@@ -379,7 +327,49 @@ class Membro:
 
 
     def filtrarItems(self, lista):
-        return list(filter(self.estaDentroDoPeriodo, lista))
+        lista = list(filter(self.estaDentroDoPeriodo, lista))
+        lista = list(filter(self.contemAlgumTermoDeBusca, lista))
+        return lista
+
+    def contemAlgumTermoDeBusca(self, objeto):
+        if len(self.dicionarioDeTermos)==0:
+            return True
+
+        if hasattr(objeto, 'titulo'):
+            texto = objeto.titulo
+        elif hasattr(objeto, 'descricao'):
+            texto = str(objeto.descricao)
+        elif hasattr(objeto, 'tituloDoTrabalho'):
+            texto = str(objeto.tituloDoTrabalho)
+        elif hasattr(objeto, 'item'):
+            texto = str(objeto.item)
+        # else:
+        #     texto = ''  # ou algum outro valor padrão
+
+        texto = eliminar_acentuacao(texto.strip())
+        if len(texto) == 0:
+            return False
+        
+        freq = [0]*len(self.dicionarioDeTermos)
+        
+        for (iTermo, Termo) in enumerate(list(self.dicionarioDeTermos.keys())):
+            numeroDePartesAchadas = 0 
+            for parteT in self.dicionarioDeTermos[Termo]:
+                if "*" in parteT:
+                    parteT = parteT.strip("*")
+                    if re.search(r"\b" + parteT, texto, re.IGNORECASE):
+                        numeroDePartesAchadas += 1 
+                else:
+                    if re.search(r"\b" + parteT + r"\b", texto, re.IGNORECASE):
+                        numeroDePartesAchadas += 1
+            if numeroDePartesAchadas == len(self.dicionarioDeTermos[Termo]): # se todas as partes termos achado
+                freq[iTermo] += 1
+                
+        if sum(freq)>=1:
+            freq = "\t".join(str(i) for i in freq)
+            return True #, freq)    # freq = "1 2 0 0 0 0 1" # do tamanho da lista de termos
+        else:
+            return False #, "")
 
 
     def estaDentroDoPeriodo(self, objeto):
@@ -432,10 +422,6 @@ class Membro:
                             break
                     return retorno
 
-    def obterCoordenadasDeGeolocalizacao(self):
-        geo = Geolocalizador(self.enderecoProfissional, self.dicionarioDeGeolocalizacao)
-        self.enderecoProfissionalLat = geo.lat
-        self.enderecoProfissionalLon = geo.lon
 
     def ris(self):
         s = ''
@@ -492,7 +478,7 @@ class Membro:
             s += "\n[COLABORADORES]"
             for idColaborador in self.listaIDLattesColaboradoresUnica:
                 s += "\n+ " + idColaborador.encode('utf8', 'replace')
-
+        """
         else:
             s += "\n    - Numero de colaboradores (identificado)      : " + str(len(self.listaIDLattesColaboradoresUnica))
             s += "\n    - Artigos completos publicados em periódicos  : " + str(len(self.listaArtigoEmPeriodico))
@@ -536,6 +522,7 @@ class Membro:
             s += "\n    - Produção artística/cultural                 : " + str(len(self.listaProducaoArtistica))
             s += "\t    - Organização de eventos                      : " + str(len(self.listaOrganizacaoDeEvento))
             s += "\n"
+        """
         return s
 
 		

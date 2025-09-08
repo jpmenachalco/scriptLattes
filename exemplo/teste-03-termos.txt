@@ -1,0 +1,19 @@
+# termos em português
+Plataforma Lattes
+cientome*
+rede* AND colaboraç*
+currículo* AND Lattes
+Lattes AND CV
+genealog* AND acadêmic*
+genealog* AND anal*
+coautoria* AND rede*
+colabora* AND pesquisador*
+
+# termos em inglês
+Lattes platform
+scientometric*
+collaborat* AND network*
+Lattes AND curricul*
+network AND co-authorship
+collaboration* AND researcher*
+

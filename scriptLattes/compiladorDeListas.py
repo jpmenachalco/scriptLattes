@@ -1,24 +1,5 @@
 #!/usr/bin/python
 # encoding: utf-8
-#
-#  scriptLattes
-#  http://scriptlattes.sourceforge.net/
-#
-#  Este programa é um software livre; você pode redistribui-lo e/ou 
-#  modifica-lo dentro dos termos da Licença Pública Geral GNU como 
-#  publicada pela Fundação do Software Livre (FSF); na versão 2 da 
-#  Licença, ou (na sua opinião) qualquer versão.
-#
-#  Este programa é distribuído na esperança que possa ser util, 
-#  mas SEM NENHUMA GARANTIA; sem uma garantia implicita de ADEQUAÇÂO a qualquer
-#  MERCADO ou APLICAÇÃO EM PARTICULAR. Veja a
-#  Licença Pública Geral GNU para maiores detalhes.
-#
-#  Você deve ter recebido uma cópia da Licença Pública Geral GNU
-#  junto com este programa, se não, escreva para a Fundação do Software
-#  Livre(FSF) Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-#
-
 
 import re
 import tqdm
@@ -77,6 +58,7 @@ class CompiladorDeListas:
         self.listaCompletaProcessoOuTecnica = {}
         self.listaCompletaTrabalhoTecnico = {}
         self.listaCompletaOutroTipoDeProducaoTecnica = {}
+        self.listaCompletaEntrevista = {}
 
         self.listaCompletaPatente = {}
         self.listaCompletaProgramaComputador = {}
@@ -106,7 +88,7 @@ class CompiladorDeListas:
         self.listaCompletaParticipacaoEmEvento = {}
         self.listaCompletaOrganizacaoDeEvento = {}
 
-        print("[COMPILANDO/SUMARIZANDO TODAS AS PUBLICAÇÕES DOS MEMBROS DO GRUPO]")
+        print("\n[COMPILANDO/SUMARIZANDO TODAS AS PUBLICAÇÕES DOS MEMBROS DO GRUPO]")
         # compilamos as producoes de todos os membros (separados por tipos)
         with tqdm.tqdm(total=len(grupo.listaDeMembros)) as progress_bar:
             for membro in grupo.listaDeMembros:
@@ -142,8 +124,8 @@ class CompiladorDeListas:
                                                                          self.listaCompletaProcessoOuTecnica)
                 self.listaCompletaTrabalhoTecnico = self.compilarLista(membro.listaTrabalhoTecnico,
                                                                        self.listaCompletaTrabalhoTecnico)
-                self.listaCompletaOutroTipoDeProducaoTecnica = self.compilarLista(membro.listaOutroTipoDeProducaoTecnica,
-                                                                                  self.listaCompletaOutroTipoDeProducaoTecnica)
+                self.listaCompletaOutroTipoDeProducaoTecnica = self.compilarLista(membro.listaOutroTipoDeProducaoTecnica, self.listaCompletaOutroTipoDeProducaoTecnica)
+                self.listaCompletaEntrevista = self.compilarLista(membro.listaEntrevista, self.listaCompletaEntrevista)
         
                 self.listaCompletaPatente = self.compilarLista(membro.listaPatente, self.listaCompletaPatente)
                 self.listaCompletaProgramaComputador = self.compilarLista(membro.listaProgramaComputador,
@@ -224,10 +206,10 @@ class CompiladorDeListas:
             self.listaCompletaPB = self.compilarListasCompletas(self.listaCompletaOutroTipoDeProducaoBibliografica,
                                                                 self.listaCompletaPB)
 
-        if self.grupo.obterParametro('relatorio-incluir_software_com_patente'):
+        if self.grupo.obterParametro('relatorio-incluir_software_com_registro'):
             self.listaCompletaPT = self.compilarListasCompletas(self.listaCompletaSoftwareComPatente,
                                                                 self.listaCompletaPT)
-        if self.grupo.obterParametro('relatorio-incluir_software_sem_patente'):
+        if self.grupo.obterParametro('relatorio-incluir_software_sem_registro'):
             self.listaCompletaPT = self.compilarListasCompletas(self.listaCompletaSoftwareSemPatente,
                                                                 self.listaCompletaPT)
         if self.grupo.obterParametro('relatorio-incluir_produto_tecnologico'):
@@ -240,6 +222,9 @@ class CompiladorDeListas:
             self.listaCompletaPT = self.compilarListasCompletas(self.listaCompletaTrabalhoTecnico, self.listaCompletaPT)
         if self.grupo.obterParametro('relatorio-incluir_outro_tipo_de_producao_tecnica'):
             self.listaCompletaPT = self.compilarListasCompletas(self.listaCompletaOutroTipoDeProducaoTecnica,
+                                                                self.listaCompletaPT)
+        if self.grupo.obterParametro('relatorio-incluir_entrevista_mesas_e_comentarios'):
+            self.listaCompletaPT = self.compilarListasCompletas(self.listaCompletaEntrevista,
                                                                 self.listaCompletaPT)
 
         if self.grupo.obterParametro('relatorio-incluir_patente'):
@@ -320,6 +305,7 @@ class CompiladorDeListas:
                 self.adicionarCoautorNaLista(self.listaCompletaProcessoOuTecnica, membro)
                 self.adicionarCoautorNaLista(self.listaCompletaTrabalhoTecnico, membro)
                 self.adicionarCoautorNaLista(self.listaCompletaOutroTipoDeProducaoTecnica, membro)
+                self.adicionarCoautorNaLista(self.listaCompletaEntrevista, membro)
 
                 self.adicionarCoautorNaLista(self.listaCompletaPatente, membro)
                 self.adicionarCoautorNaLista(self.listaCompletaProgramaComputador, membro)
@@ -417,9 +403,9 @@ class CompiladorDeListas:
             self.matrizesOutroTipoDeProducaoBibliografica = self.criarMatrizes(
                 self.listaCompletaOutroTipoDeProducaoBibliografica)
 
-        if self.grupo.obterParametro('grafo-incluir_software_com_patente'):
+        if self.grupo.obterParametro('grafo-incluir_software_com_registro'):
             self.matrizesSoftwareComPatente = self.criarMatrizes(self.listaCompletaSoftwareComPatente)
-        if self.grupo.obterParametro('grafo-incluir_software_sem_patente'):
+        if self.grupo.obterParametro('grafo-incluir_software_sem_registro'):
             self.matrizesSoftwareSemPatente = self.criarMatrizes(self.listaCompletaSoftwareSemPatente)
         if self.grupo.obterParametro('grafo-incluir_produto_tecnologico'):
             self.matrizesProdutoTecnologico = self.criarMatrizes(self.listaCompletaProdutoTecnologico)
@@ -429,6 +415,8 @@ class CompiladorDeListas:
             self.matrizesTrabalhoTecnico = self.criarMatrizes(self.listaCompletaTrabalhoTecnico)
         if self.grupo.obterParametro('grafo-incluir_outro_tipo_de_producao_tecnica'):
             self.matrizesOutroTipoDeProducaoTecnica = self.criarMatrizes(self.listaCompletaOutroTipoDeProducaoTecnica)
+        if self.grupo.obterParametro('grafo-incluir_entrevista_mesas_e_comentarios'):
+            self.matrizesEntrevista = self.criarMatrizes(self.listaCompletaEntrevista)
 
         if self.grupo.obterParametro('grafo-incluir_patente'):
             self.matrizesPatente = self.criarMatrizes(self.listaCompletaPatente)
@@ -550,11 +538,11 @@ class CompiladorDeListas:
             matriz2 += self.matrizesOutroTipoDeProducaoBibliografica[1]
             colaboracoes = self.intercalar_colaboracoes(colaboracoes, self.matrizesOutroTipoDeProducaoBibliografica[2])
 
-        if self.grupo.obterParametro('grafo-incluir_software_com_patente'):
+        if self.grupo.obterParametro('grafo-incluir_software_com_registro'):
             matriz1 += self.matrizesSoftwareComPatente[0]
             matriz2 += self.matrizesSoftwareComPatente[1]
             colaboracoes = self.intercalar_colaboracoes(colaboracoes, self.matrizesSoftwareComPatente[2])
-        if self.grupo.obterParametro('grafo-incluir_software_sem_patente'):
+        if self.grupo.obterParametro('grafo-incluir_software_sem_registro'):
             matriz1 += self.matrizesSoftwareSemPatente[0]
             matriz2 += self.matrizesSoftwareSemPatente[1]
             colaboracoes = self.intercalar_colaboracoes(colaboracoes, self.matrizesSoftwareSemPatente[2])
@@ -574,6 +562,10 @@ class CompiladorDeListas:
             matriz1 += self.matrizesOutroTipoDeProducaoTecnica[0]
             matriz2 += self.matrizesOutroTipoDeProducaoTecnica[1]
             colaboracoes = self.intercalar_colaboracoes(colaboracoes, self.matrizesOutroTipoDeProducaoTecnica[2])
+        if self.grupo.obterParametro('grafo-incluir_entrevista_mesas_e_comentarios'):
+            matriz1 += self.matrizesEntrevista[0]
+            matriz2 += self.matrizesEntrevista[1]
+            colaboracoes = self.intercalar_colaboracoes(colaboracoes, self.matrizesEntrevista[2])
 
         if self.grupo.obterParametro('grafo-incluir_patente'):
             matriz1 += self.matrizesPatente[0]
@@ -619,9 +611,9 @@ class CompiladorDeListas:
         print(self.matrizApresentacaoDeTrabalho)
         print("\nOutro tipo de producao bibliografica")
         print(self.matrizOutroTipoDeProducaoBibliografica)
-        print("\nSoftware com patente")
+        print("\nSoftware com registro")
         print(self.matrizSoftwareComPatente)
-        print("\nSoftware sem patente")
+        print("\nSoftware sem registro")
         print(self.matrizSoftwareSemPatente)
         print("\nProduto tecnologico")
         print(self.matrizProdutoTecnologico)

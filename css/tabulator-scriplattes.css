@@ -1,0 +1,81 @@
+/* ===== scriptLattes: tema Tabulator ===== */
+:root{
+  --sl-cinza-header: #eceec3; /* cinza escuro elegante */
+  --sl-cinza-borda:  #c3c8cf;
+  --sl-texto-preto:  #535760;
+  --sl-texto-header: #ffffff; /* texto branco no cabeçalho */
+  --sl-hover-row:    #f1f3f5;
+  --sl-btn-bg:       #e9ecef;
+  --sl-btn-bg-h:     #dee2e6;
+}
+
+/* Base (opcional, deixe aqui se quiser unificar o visual das páginas) */
+body {
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  padding: 1rem 1.25rem;
+  background: #f6f6f6;
+  color: var(--sl-texto-preto);
+}
+h1 {
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: var(--sl-texto-preto);
+  margin: 0 0 .75rem 0;
+}
+
+/* Controles (botões de download, etc.) */
+.sl-controls {
+  margin: 0 0 .75rem 0;
+  display: flex;
+  gap: .5rem;
+  flex-wrap: wrap;
+}
+.sl-controls button {
+  padding: .5rem .9rem;
+  border: 1px solid var(--sl-cinza-borda);
+  background: var(--sl-btn-bg);
+  color: var(--sl-texto-preto);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.sl-controls button:hover { background: var(--sl-btn-bg-h); }
+
+/* Caixa da tabela */
+.sl-tabela {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* ======= Tabulator: cabeçalho e estados ======= */
+.tabulator .tabulator-header{
+  background-color: var(--sl-cinza-header);
+  border-bottom: 1px solid var(--sl-cinza-borda);
+}
+.tabulator .tabulator-col,
+.tabulator .tabulator-col-row-handle{
+  color: var(--sl-texto-header);
+  font-weight: 600;
+}
+/* Ícones/setas de ordenação em branco */
+.tabulator .tabulator-col .tabulator-sorter,
+.tabulator .tabulator-col .tabulator-sorter i{
+  color: var(--sl-texto-header);
+}
+
+/* Linhas */
+.tabulator .tabulator-row{ color: var(--sl-texto-preto); }
+.tabulator .tabulator-row:hover{ background-color: var(--sl-hover-row); }
+
+/* Filtros no cabeçalho */
+.tabulator-header .tabulator-col .tabulator-header-filter input,
+.tabulator-header .tabulator-col .tabulator-header-filter select{
+  border: 1px solid #cfd4da;
+  background: #fff;
+  color: var(--sl-texto-preto);
+  height: 30px;
+  border-radius: 4px;
+  padding: 0 .4rem;
+}
+

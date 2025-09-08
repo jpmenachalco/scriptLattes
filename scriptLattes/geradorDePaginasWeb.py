@@ -1,33 +1,35 @@
 #!/usr/bin/python
 # encoding: utf-8
-#
-#
-# scriptLattes
-# http://scriptlattes.sourceforge.net/
-#
-# Este programa é um software livre; você pode redistribui-lo e/ou
-# modifica-lo dentro dos termos da Licença Pública Geral GNU como
-# publicada pela Fundação do Software Livre (FSF); na versão 2 da 
-# Licença, ou (na sua opinião) qualquer versão.
-#
-# Este programa é distribuído na esperança que possa ser util, 
-# mas SEM NENHUMA GARANTIA; sem uma garantia implicita de ADEQUAÇÂO a qualquer
-# MERCADO ou APLICAÇÃO EM PARTICULAR. Veja a
-# Licença Pública Geral GNU para maiores detalhes.
-#
-# Você deve ter recebido uma cópia da Licença Pública Geral GNU
-# junto com este programa, se não, escreva para a Fundação do Software
-# Livre(FSF) Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-#
-#
+
 from collections import defaultdict
 import datetime
 import os
 import re
-import unicodedata
-from .highcharts import *  # highcharts
+import json
 from . import membro
+from networkx.readwrite import json_graph
+import networkx as nx
+import unicodedata
 
+# SVG inline representando um mini-grafo de coautoria
+grafo_svg = """
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="13 18 114 64"
+     width="120" height="73"
+     role="img" aria-label="Ícone de grafo de coautoria">
+  <!-- Arestas (todas em darkblue) -->
+  <line x1="30"  y1="50" x2="75"  y2="25" stroke="#00008B" stroke-width="2"/>
+  <line x1="30"  y1="50" x2="75"  y2="75" stroke="#00008B" stroke-width="2"/>
+  <line x1="75"  y1="25" x2="120" y2="50" stroke="#00008B" stroke-width="2"/>
+  <line x1="75"  y1="75" x2="120" y2="50" stroke="#00008B" stroke-width="2"/>
+
+  <!-- Nós coloridos -->
+  <circle cx="30"  cy="50" r="7" fill="#00008B"/>  <!-- darkblue -->
+  <circle cx="75"  cy="25" r="7" fill="#006400"/>  <!-- darkgreen -->
+  <circle cx="75"  cy="75" r="7" fill="#8B0000"/>  <!-- darkred -->
+  <circle cx="120" cy="50" r="7" fill="#00008B"/>  <!-- darkblue -->
+</svg>
+"""
 
 class GeradorDePaginasWeb:
     grupo = None
@@ -38,22 +40,16 @@ class GeradorDePaginasWeb:
 
     def __init__(self, grupo):
         self.grupo = grupo
-        self.version = 'V9'
+        self.version = 'V.2025.09'
         self.dir = self.grupo.obterParametro('global-diretorio_de_saida')
 
-        if self.grupo.obterParametro('global-criar_paginas_jsp'):
-            self.extensaoPagina = '.jsp'
-            self.html1 = '<%@ page language="java" contentType="text/html; charset=ISO8859-1" pageEncoding="ISO8859-1"%> <%@ taglib prefix="f" uri="http://java.sun.com/jsf/core"%> <f:verbatim>'
-            self.html2 = '</f:verbatim>'
-        else:
-            self.extensaoPagina = '.html'
-            self.html1 = '<html>'
-            self.html2 = '</html>'
+        self.extensaoPagina = '.html'
+        self.html1 = '<html>'
+        self.html2 = '</html>'
 
         # geracao de arquivo RIS com as publicacoes
         if self.grupo.obterParametro('relatorio-salvar_publicacoes_em_formato_ris'):
-            prefix = self.grupo.obterParametro('global-prefixo') + '-' if not self.grupo.obterParametro('global-prefixo') == '' else ''
-            self.arquivoRis = open(self.dir + "/" + prefix + "publicacoes.ris", 'w', encoding='utf8')
+            self.arquivoRis = open(self.dir + "/" + "publicacoes.ris", 'w', encoding='utf8')
 
         self.gerar_pagina_de_membros()
         self.gerar_pagina_de_metricas()
@@ -62,7 +58,6 @@ class GeradorDePaginasWeb:
         self.gerarPaginasDeProducoesTecnicas()
         self.gerarPaginasDeProducoesArtisticas()
         self.gerarPaginasDePatentes()
-
 
         if self.grupo.obterParametro('relatorio-mostrar_orientacoes'):
             self.gerarPaginasDeOrientacoes()
@@ -81,9 +76,6 @@ class GeradorDePaginasWeb:
 
         if self.grupo.obterParametro('grafo-mostrar_grafo_de_colaboracoes'):
             self.gerarPaginaDeGrafosDeColaboracoes()
-
-        if self.grupo.obterParametro('relatorio-incluir_internacionalizacao'):
-            self.gerarPaginasDeInternacionalizacao()
 
         # final do fim!
         self.gerarPaginaPrincipal()
@@ -130,9 +122,6 @@ class GeradorDePaginasWeb:
 
         if self.grupo.obterParametro('grafo-mostrar_grafo_de_colaboracoes'):
             s += '| <a href=#grafo>Grafo de colaborações</a> '
-
-        #if self.grupo.obterParametro('mapa-mostrar_mapa_de_geolocalizacao'):
-        #    s += '| <a href=#mapa>Mapa de geolocalização</a> '
 
         if self.grupo.obterParametro('relatorio-incluir_internacionalizacao'):
             s += '| <a href=#internacionalizacao>Internacionalização</a> '
@@ -181,10 +170,11 @@ class GeradorDePaginasWeb:
         if self.nPT3 > 0:
             s += '<li> <a href="PT3-0' + self.extensaoPagina + '">Processos ou técnicas</a> '+ '(' + str(self.nPT3) + ')'
         if self.nPT4 > 0:
-            s += '<li> <a href="PT4-0' + self.extensaoPagina + '">Trabalhos técnicos</a> ' + '(' + str(
-                self.nPT4) + ')'
+            s += '<li> <a href="PT4-0' + self.extensaoPagina + '">Trabalhos técnicos</a> ' + '(' + str( self.nPT4) + ')'
         if self.nPT5 > 0:
             s += '<li> <a href="PT5-0' + self.extensaoPagina + '">Demais tipos de produção técnica</a> '+ '(' + str(self.nPT5) + ')'
+        if self.nPT6 > 0:
+            s += '<li> <a href="PT6-0' + self.extensaoPagina + '">Entrevistas, mesas redondas, programas e comentários na mídia</a> '+ '(' + str(self.nPT6) + ')'
         if self.nPT > 0:
             s += '<li> <a href="PT-0' + self.extensaoPagina + '">Total de produção técnica</a> '+ '(' + str(self.nPT) + ')'
         else:
@@ -287,34 +277,14 @@ class GeradorDePaginasWeb:
             s += '</ul>'
 
         if self.grupo.obterParametro('grafo-mostrar_grafo_de_colaboracoes'):
-            s += '</ul> <h3 id="grafo">Grafo de colaborações</h3> <ul>'
-            s += '<a href="grafoDeColaboracoes' + self.extensaoPagina + '"><img src="grafoDeColaboracoesSemPesos-t.png" border=1> </a>'
-        s += '</ul>'
-
-        '''
-        if self.grupo.obterParametro('mapa-mostrar_mapa_de_geolocalizacao'):
-            s += '<h3 id="mapa">Mapa de geolocaliza&ccedil;&atilde;o</h3> <br> <div id="map_canvas" style="width: 800px; height: 600px"></div> <br>'
-            s += '<b>Legenda</b><table>'
-            if self.grupo.obterParametro('mapa-incluir_membros_do_grupo'):
-                s += '<tr><td> <img src=lattesPoint0.png></td> <td> Membro (orientador) </td></tr>'
-            if self.grupo.obterParametro('mapa-incluir_alunos_de_pos_doutorado'):
-                s += '<tr><td> <img src=lattesPoint1.png></td> <td>  Pesquisador com pós-doutorado concluído e ID Lattes cadastrado no currículo do supervisor </td></tr>'            
-            if self.grupo.obterParametro('mapa-incluir_alunos_de_doutorado'):
-                s += '<tr><td> <img src=lattesPoint2.png></td> <td>  Aluno com doutorado concluído e ID Lattes cadastrado no currículo do orientador </td></tr>'            
-            if self.grupo.obterParametro('mapa-incluir_alunos_de_mestrado'):
-                s += '<tr><td> <img src=lattesPoint3.png></td> <td>  Aluno com mestrado e ID Lattes cadastrado no currículo do orientador </td></tr>'            
-            s += '</table>'
-        '''
-
-        '''
-        if self.grupo.obterParametro('relatorio-incluir_internacionalizacao'):
-            s += '</ul> <h3 id="internacionalizacao">Internacionalização</h3> <ul>'
-            if self.nIn0 > 0:
-                s += '<li> <a href="In0-0' + self.extensaoPagina + '">Coautoria e internacionalização</a> '+ '(' + str(self.nIn0) + ')'
-            else:
-                s += '<i>Nenhuma publicação com DOI disponível para análise</i>'
-            s += '</ul>'
-        '''
+            s += "</ul>\n"
+            s += "<h3 id=\"grafo\">Grafo de colaborações</h3>\n"
+            s += (
+                f'<a href="grafoDeColaboracoes{self.extensaoPagina}" '
+                'title="Clique para ver o grafo interativo de coautoria">\n'
+                f'{grafo_svg}\n'
+                '</a>\n'
+            )
 
         s += self.paginaBottom()
         self.salvarPagina("index" + self.extensaoPagina, s)
@@ -378,29 +348,25 @@ class GeradorDePaginasWeb:
         self.nPT3 = 0
         self.nPT4 = 0
         self.nPT5 = 0
+        self.nPT6 = 0
         self.nPT = 0
 
-        if self.grupo.obterParametro('relatorio-incluir_software_com_patente'):
-            self.nPT0 = self.gerar_pagina_de_producoes(self.grupo.compilador.listaCompletaSoftwareComPatente,
-                                                       "Softwares com registro de patente", "PT0")
-        if self.grupo.obterParametro('relatorio-incluir_software_sem_patente'):
-            self.nPT1 = self.gerar_pagina_de_producoes(self.grupo.compilador.listaCompletaSoftwareSemPatente,
-                                                       "Softwares sem registro de patente", "PT1")
+        if self.grupo.obterParametro('relatorio-incluir_software_com_registro'):
+            self.nPT0 = self.gerar_pagina_de_producoes(self.grupo.compilador.listaCompletaSoftwareComPatente, "Programas de computador com registro", "PT0")
+        if self.grupo.obterParametro('relatorio-incluir_software_sem_registro'):
+            self.nPT1 = self.gerar_pagina_de_producoes(self.grupo.compilador.listaCompletaSoftwareSemPatente, "Programas de computador sem registro", "PT1")
         if self.grupo.obterParametro('relatorio-incluir_produto_tecnologico'):
-            self.nPT2 = self.gerar_pagina_de_producoes(self.grupo.compilador.listaCompletaProdutoTecnologico,
-                                                       "Produtos tecnológicos", "PT2")
+            self.nPT2 = self.gerar_pagina_de_producoes(self.grupo.compilador.listaCompletaProdutoTecnologico, "Produtos tecnológicos", "PT2")
         if self.grupo.obterParametro('relatorio-incluir_processo_ou_tecnica'):
-            self.nPT3 = self.gerar_pagina_de_producoes(self.grupo.compilador.listaCompletaProcessoOuTecnica,
-                                                       "Processos ou técnicas", "PT3")
+            self.nPT3 = self.gerar_pagina_de_producoes(self.grupo.compilador.listaCompletaProcessoOuTecnica, "Processos ou técnicas", "PT3")
         if self.grupo.obterParametro('relatorio-incluir_trabalho_tecnico'):
-            self.nPT4 = self.gerar_pagina_de_producoes(self.grupo.compilador.listaCompletaTrabalhoTecnico,
-                                                       "Trabalhos técnicos", "PT4")
+            self.nPT4 = self.gerar_pagina_de_producoes(self.grupo.compilador.listaCompletaTrabalhoTecnico, "Trabalhos técnicos", "PT4")
         if self.grupo.obterParametro('relatorio-incluir_outro_tipo_de_producao_tecnica'):
-            self.nPT5 = self.gerar_pagina_de_producoes(self.grupo.compilador.listaCompletaOutroTipoDeProducaoTecnica,
-                                                       "Demais tipos de produção técnica", "PT5")
+            self.nPT5 = self.gerar_pagina_de_producoes(self.grupo.compilador.listaCompletaOutroTipoDeProducaoTecnica, "Demais tipos de produção técnica", "PT5")
+        if self.grupo.obterParametro('relatorio-incluir_entrevista_mesas_e_comentarios'):
+            self.nPT6 = self.gerar_pagina_de_producoes(self.grupo.compilador.listaCompletaEntrevista, "Entrevistas, mesas redondas, programas e comentários na mídia", "PT6")
         # Total de produções técnicas
-        self.nPT = self.gerar_pagina_de_producoes(self.grupo.compilador.listaCompletaPT, "Total de produção técnica",
-                                                  "PT")
+        self.nPT = self.gerar_pagina_de_producoes(self.grupo.compilador.listaCompletaPT, "Total de produção técnica", "PT")
 
 
     def gerarPaginasDeProducoesArtisticas(self):
@@ -550,11 +516,9 @@ class GeradorDePaginasWeb:
     def template_pagina_de_producoes():
         st = '''
                 {top}
-                {grafico}
                 <h3>{titulo}</h3> <br>
-                    <div id="container" style="min-width: 310px; max-width: 1920px; height: {height}; margin: 0"></div>
+                    {grafico}
                     Número total de itens: {numero_itens}<br>
-                    {totais_qualis}
                     {indice_paginas}
                     {producoes}
                     </table>
@@ -569,153 +533,321 @@ class GeradorDePaginasWeb:
             '''
         return s
 
-    @staticmethod
-    def gerar_grafico_de_producoes(listaCompleta, titulo):
-        chart = highchart(type=chart_type.column)
-        chart.set_y_title('Quantidade')
-        # chart.set_x_title(u'Ano')
-        # chart.set_x_categories(sorted(listaCompleta.keys()))
-        # chart['xAxis']['type'] = 'categories'
 
-        categories = []
-        areas_map = {None: 0}
-        estrato_area_ano_freq = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
-        for ano, publicacoes in sorted(listaCompleta.items()):
-            if ano!=0:
-                categories.append(ano)
-                for pub in publicacoes:
-                    try:
-                        #if not pub.qualis:
-                        #    logger.debug("qualis is None")
-                        estrato_area_ano_freq[None][None][ano] += 1  # sem qualis
-                        #else:
-                        #    if type(pub.qualis) is str:  # sem area
-                        #        logger.debug("publicação com qualis string (sem área): '{}'".format(pub.qualis))
-                        #    else:
-                        #        for area, estrato in sorted(pub.qualis.items()):
-                        #            estrato_area_ano_freq[estrato][area][ano] += 1
-                        #            if area not in areas_map:
-                        #                areas_map[area] = len(areas_map)
-                    except AttributeError:
-                        logger.debug("publicação sem atributo qualis")
-                        estrato_area_ano_freq[None][None][ano] += 1  # producao que nao tem qualis
+    def gerar_grafico_de_producoes_html(self, lista_completa: dict, titulo: str, container_id: str = "grafico-producoes") -> str:
+        """
+        Gera o HTML+JS para um gráfico de barras Highcharts
+        embutindo os dados e usando o CDN, sem arquivos .js locais.
+        """
+        # 1) Ordena os anos
+        itens_ordenados = sorted(lista_completa.items())  # [(ano, lista_de_publicacoes), ...]
+ 
+        # 2) Separa em duas listas: categorias (anos) e valores (contagens)
+        categorias = []
+        valores    = []
+        for ano, publicacoes in itens_ordenados:
+            categorias.append(str(ano))
+            valores.append(len(publicacoes))
+ 
+        # 3) Monta a configuração do Highcharts
+        config = {
+            "chart": {"type": "column", "height": 250},
+            "title": {"text": ''},
+            "xAxis": {"categories": categorias, "type": "category"},
+            "yAxis": {"title": {"text": "Quantidade"}},
+            "legend": {"enabled": False},
+            "plotOptions": {
+                "column": {
+                    "color": "#4A4A4A",           # cor das barras
+                    "borderRadius": 2,            # cantos levemente arredondados
+                    "pointPadding": 0.1,
+                    "groupPadding": 0.1
+                }
+            },
+            "series": [
+                {
+                    "name": "Total",
+                    "data": valores,
+                    #"color": "#222233"          # opção alternativa: definir aqui
+                }
+            ],
+            "credits": {"enabled": False}
+        }
 
-        series = []
-        if not list(estrato_area_ano_freq.keys()):  # produções vazias
-            producoes_vazias = True
-            #logger.debug("produções vazias")
-        ###elif len(estrato_area_ano_freq.keys()) == 1 and None in estrato_area_ano_freq.keys():  # gráfico normal sem qualis
-        else:  # gráfico normal sem qualis
-            chart.settitle(titulo)
-            chart['plotOptions']['column']['stacking'] = None
-            chart['chart']['height'] = 300
-            # chart['legend']['title'] = {'text': 'Ano'}
-            chart['legend']['enabled'] = jscmd('false')
-            chart['xAxis']['type'] = 'category'
+ 
+        # 4) Retorna o bloco HTML/JS completo
+        return f"""
+        <div id="{container_id}" style="width:100%; margin:1em auto;"></div>
+        <!-- script src="https://code.highcharts.com/highcharts.js"></script -->
+        <script src="./js/highcharts.js"></script>
+        <script>
+          document.addEventListener('DOMContentLoaded', function () {{
+            Highcharts.chart('{container_id}', {json.dumps(config)});
+          }});
+        </script>
+        """
 
-            # freq = [estrato_area_ano_freq[None][None][ano] for ano in categories]
-            # series.append({'name': u'Total', 'data': freq})
-            # chart.set_x_categories(categories)
-
-            data = []
-            for ano in categories:
-                freq = estrato_area_ano_freq[None][None][ano]
-                data.append([ano, freq])
-            series.append({'name': 'Total', 'data': data})
-
-            # for ano, pub in sorted(listaCompleta.items()):
-            #     series.append({'name': ano, 'data': [len(pub)]}) #, 'y': [len(pub)]})
-        '''
-        else:  # temos informações sobre qualis
-            chart.settitle(u'Publicações por ano agrupadas por área e estrato Qualis')
-            chart['chart']['type'] = 'bar'
-            chart['chart']['height'] = 1080
-            # chart['plotOptions']['column']['stacking'] = 'normal'
-            chart['plotOptions']['bar']['stacking'] = 'normal'
-            chart['legend']['title'] = {'text': 'Estrato Qualis'}
-            chart['legend']['enabled'] = jscmd('true')
-            chart['xAxis']['type'] = 'category'
-            # chart['yAxis']['stackLabels']['rotation'] = 90
-            # chart['yAxis']['stackLabels']['textAlign'] = 'right'
-
-            drilldown_series = []
-            for estrato, area_ano_freq in sorted(estrato_area_ano_freq.items()):
-                if not estrato:
-                    estrato = 'Sem Qualis'
-                data = []
-                # for area, ano_freq in area_ano_freq.items():
-                for area in sorted(areas_map.keys()):
-                    ano_freq = area_ano_freq[area]
-                    freq = [ano_freq[ano] for ano in categories]
-                    if not area:
-                        area = u'Sem área'
-                    data.append({'name': area, 'y': sum(freq), 'drilldown': area + estrato})
-
-                    drilldown_series.append(
-                        {'id': area + estrato, 'name': estrato, 'data': [[ano, ano_freq[ano]] for ano in categories]})
-                one_serie = {'name': estrato, 'data': data}  #, 'stack': area}
-                series.append(one_serie)
-            chart['drilldown'] = {'series': drilldown_series}
-        '''
-        chart.set_series(series)
-
-        return chart
-
-    def gerar_pagina_de_producoes(self, lista_completa, titulo_pagina, prefixo, ris=False):
-        totais_qualis = ""
-        if self.grupo.obterParametro('global-identificar_publicacoes_com_qualis'):
-            if self.grupo.obterParametro('global-arquivo_qualis_de_periodicos'):  # FIXME: nao está mais sendo usado agora que há qualis online
-                if prefixo == 'PB0':
-                    totais_qualis = self.formatarTotaisQualis(self.grupo.qualis.qtdPB0)
-                elif prefixo == 'PB7':
-                    totais_qualis = self.formatarTotaisQualis(self.grupo.qualis.qtdPB7)
-            if self.grupo.obterParametro('global-arquivo_qualis_de_congressos'):
-                if prefixo == 'PB4':
-                    totais_qualis = self.formatarTotaisQualis(self.grupo.qualis.qtdPB4)
-                elif prefixo == 'PB5':
-                    totais_qualis = self.formatarTotaisQualis(self.grupo.qualis.qtdPB5)
-
+  
+    def gerar_pagina_de_producoes(self, lista_completa, titulo_pagina, prefixo, ris=False):    
+        def _s(x): 
+            return '' if x is None else str(x)
+    
+        def _int(x, default=0):
+            try:
+                return int(x)
+            except Exception:
+                return default
+    
+        def _slug(label):
+            # rótulo → identificador seguro para Tabulator
+            t = unicodedata.normalize('NFKD', _s(label)).encode('ascii', 'ignore').decode('ascii')
+            t = re.sub(r'[^A-Za-z0-9]+', '_', t).strip('_').lower()
+            return t or 'campo'
+    
+        def _eh_num(v):
+            if v is None:
+                return False
+            try:
+                float(str(v).replace('.', '').replace(',', '.'))
+                return True
+            except Exception:
+                return False
+    
+        def _tipo_pub(pub):
+            t = getattr(pub, 'tipo', None)
+            if callable(t):
+                try:
+                    return _s(t())
+                except Exception:
+                    pass
+            if isinstance(t, str) and t:
+                return t
+            return pub.__class__.__name__
+    
+        def _max_len(values):
+            m = 0
+            for v in values:
+                if v is None:
+                    continue
+                s = str(v)
+                if len(s) > m:
+                    m = len(s)
+            return m
+    
         total_producoes = sum(len(v) for v in list(lista_completa.values()))
-
         keys = sorted(list(lista_completa.keys()), reverse=True)
-        if keys:  # apenas geramos páginas web para lista com pelo menos 1 elemento
-            max_elementos = int(self.grupo.obterParametro('global-itens_por_pagina'))
-            #total_paginas = int(math.ceil( total_producoes / (max_elementos * 1.0)))  # dividimos os relatórios em grupos (e.g 1000 items)
-            total_paginas = total_producoes // max_elementos + (1 if total_producoes % max_elementos != 0 else 0)
-
-            grafico = self.gerar_grafico_de_producoes(lista_completa, titulo_pagina)  # FIXME: é o mesmo gráfico em todas as páginas
-
-            anos_indices_publicacoes = self.arranjar_publicacoes(lista_completa)
-            itens_por_pagina = self.chunks(anos_indices_publicacoes, max_elementos)
-            for numero_pagina, itens in enumerate(itens_por_pagina):
-                producoes_html = ''
-                for indice_na_pagina, (ano, indice_no_ano, publicacao) in enumerate(itens):
-                    # armazenamos uma copia da publicacao (formato RIS)
-                    if ris and self.grupo.obterParametro('relatorio-salvar_publicacoes_em_formato_ris'):
-                        self.salvarPublicacaoEmFormatoRIS(publicacao)
-
-                    if indice_na_pagina == 0 or indice_no_ano == 0:
-                        if indice_na_pagina > 0:
-                            producoes_html += '</table></div>'
-                        producoes_html += '<div id="dv-year-{0}"><h3 class="year">{0}</h3> <table>'.format(
-                            ano if ano else '*itens sem ano')
-
-                    producao_html = self.template_producao()
-                    producao_html = producao_html.format(indice=indice_no_ano + 1,
-                                                         publicacao=publicacao.html(self.grupo.listaDeMembros))
-                    producoes_html += producao_html
-                producoes_html += '</table></div>'
-
-                pagina_html = self.template_pagina_de_producoes()
-                pagina_html = pagina_html.format(top=self.pagina_top(), bottom=self.paginaBottom(),
-                                                 grafico=grafico.html(), height=grafico['chart']['height'],
-                                                 titulo=titulo_pagina, numero_itens=str(total_producoes),
-                                                 totais_qualis=totais_qualis,
-                                                 indice_paginas=self.gerarIndiceDePaginas(total_paginas, numero_pagina,
-                                                                                          prefixo),
-                                                 producoes=producoes_html)
-                self.salvarPagina(prefixo + '-' + str(numero_pagina) + self.extensaoPagina, pagina_html)
+        if not keys:
+            return 0
+    
+        max_elementos = int(self.grupo.obterParametro('global-itens_por_pagina'))
+        total_paginas = total_producoes // max_elementos + (1 if total_producoes % max_elementos != 0 else 0)
+    
+        # Gráfico segue como já existia
+        grafico = self.gerar_grafico_de_producoes_html(lista_completa, titulo_pagina)
+    
+        # [(ano, idx_no_ano, publicacao), ...]
+        anos_indices_publicacoes = self.arranjar_publicacoes(lista_completa)
+        itens_por_pagina = self.chunks(anos_indices_publicacoes, max_elementos)
+    
+        # Se houver mais de um tipo globalmente, página "Total" terá coluna Tipo
+        todos_tipos = {_tipo_pub(pub) for (_, _, pub) in anos_indices_publicacoes}
+        incluir_coluna_tipo_global = len(todos_tipos) > 1
+    
+        for numero_pagina, itens in enumerate(itens_por_pagina):
+            linhas = []
+            campos_dyn = {}         # {rotulo -> field_id}
+            valores_por_campo = {}  # {field_id -> [valores]}
+    
+            # constrói linhas apenas com json() (sem HTML)
+            for (ano, _, publicacao) in itens:
+                ano_num = _int(ano, 0) if ano is not None else 0
+                try:
+                    meta = publicacao.json() or {}
+                except Exception:
+                    meta = {}
+    
+                flat = {}
+                for rotulo, valor in meta.items():
+                    field_id = campos_dyn.get(rotulo)
+                    if not field_id:
+                        field_id = _slug(rotulo)
+                        # previne colisões improváveis de slug
+                        while field_id in campos_dyn.values():
+                            field_id += '_x'
+                        campos_dyn[rotulo] = field_id
+                    flat[field_id] = valor
+                    valores_por_campo.setdefault(field_id, []).append(valor)
+    
+                row = {"ano": ano_num}
+                if incluir_coluna_tipo_global:
+                    row["tipo"] = _tipo_pub(publicacao)
+                row.update(flat)
+                linhas.append(row)
+    
+            # === Definição de colunas base ===
+            colunas = [{
+                "title": "Ano", "field": "ano", "hozAlign": "center",
+                "sorter": "number", "headerFilter": "input",
+                "headerFilterParams": {"values": True}, "width": 110,
+                "formatter": "fmtAno", "tooltip": True, "resizable": True, "widthGrow": 0
+            }]
+            if incluir_coluna_tipo_global:
+                colunas.append({
+                    "title": "Tipo", "field": "tipo", "hozAlign": "left",
+                    "sorter": "string", "headerFilter": "input",
+                    "tooltip": True, "resizable": True, "minWidth": 140, "widthGrow": 1
+                })
+    
+            # heurística de largura por campo
+            NOMES_COMPACTOS = {"volume", "número", "numero", "páginas", "paginas", "issn", "ano"}
+            NOMES_MEDIOS = {"doi"}  # DOI ganha ellipsis e link
+    
+            for rotulo, field_id in campos_dyn.items():
+                valores = valores_por_campo.get(field_id, [])
+                so_numeros = len(valores) > 0 and all(_eh_num(v) for v in valores if v not in (None, ""))
+                maxlen = _max_len(valores)
+                rlow = rotulo.strip().lower()
+    
+                # largura/elasticidade
+                if rlow in NOMES_COMPACTOS or so_numeros or maxlen <= 8:
+                    width = 90
+                    minw = 70
+                    grow = 0
+                elif rlow in NOMES_MEDIOS or maxlen <= 16:
+                    width = 120
+                    minw = 100
+                    grow = 0
+                elif maxlen <= 32:
+                    width = None
+                    minw = 140
+                    grow = 1
+                else:
+                    width = None
+                    minw = 200
+                    grow = 2
+    
+                col = {
+                    "title": rotulo,
+                    "field": field_id,
+                    "hozAlign": "left",
+                    "sorter": "number" if so_numeros else "string",
+                    "headerFilter": "input",
+                    "tooltip": True,
+                    "resizable": True,
+                    "minWidth": minw,
+                    "widthGrow": grow
+                }
+                if width is not None:
+                    col["width"] = width
+    
+                # DOI como link (formatter JS)
+                if rlow == "doi":
+                    col["formatter"] = "fmtDOI"
+    
+                colunas.append(col)
+    
+            # === HTML completo da página ===
+            s = self.pagina_top()
+            s += """
+    <link href="css/tabulator_site.min.css" rel="stylesheet" />
+    <link href="css/tabulator-scriplattes.css" rel="stylesheet" />
+    <script src="js/tabulator.min.js"></script>
+    <script src="js/xlsx.full.min.js"></script>
+    
+    <style>
+    /* ellipsis em todas as células */
+    #tabela-publicacoes .tabulator-cell {
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+    }
+    </style>
+    """
+            s += f"""
+    <h3>{_s(titulo_pagina)}</h3><br>
+    {grafico}
+    Número total de itens: {str(total_producoes)}<br>
+    {self.gerarIndiceDePaginas(total_paginas, numero_pagina, prefixo)}
+    
+    <div class="sl-controls" style="margin-top:.5rem">
+      <button id="pubs-csv">⬇️ CSV</button>
+      <button id="pubs-xlsx">⬇️ XLSX</button>
+    </div>
+    <div id="tabela-publicacoes" class="sl-tabela"></div>
+    """
+    
+            js_data = json.dumps(linhas, ensure_ascii=False)
+            js_cols = json.dumps(colunas, ensure_ascii=False)
+    
+            s += f"""
+    <script>
+    const DATA = {js_data};
+    const COLUMNS = {js_cols};
+    
+    const LANG_PT = {{
+      "pt-br": {{
+        "pagination": {{
+          "first":"«","first_title":"Primeira",
+          "last":"»","last_title":"Última",
+          "prev":"‹","prev_title":"Anterior",
+          "next":"›","next_title":"Próxima"
+        }},
+        "headerFilters": {{ "default":"⎯ Filtrar ⎯" }}
+      }}
+    }};
+    
+    // Ano: mostra "—" quando 0
+    function fmtAno(cell) {{
+      const v = cell.getValue() || 0;
+      return v === 0 ? "—" : v;
+    }}
+    
+    // DOI → link clicável (aceita "10.xxxx/..." ou "doi:10...." ou já com http/https)
+    function fmtDOI(cell) {{
+      let v = cell.getValue();
+      if (!v) return "";
+      v = String(v).trim();
+      let href = v;
+      if (!/^https?:/i.test(v)) {{
+        v = v.replace(/^doi:\\s*/i, "");
+        href = "https://doi.org/" + v;
+      }}
+      const esc = (t) => String(t).replace(/[&<>"']/g, m => ({{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}})[m]);
+      return `<a href="${{esc(href)}}" target="_blank" rel="noopener">${{esc(v)}}</a>`;
+    }}
+    
+    // aplica formatter customizado quando marcado como "fmtDOI" em Python
+    COLUMNS.forEach(col => {{
+      if (col.formatter === "fmtDOI") col.formatter = fmtDOI;
+    }});
+    
+    document.addEventListener("DOMContentLoaded", function(){{
+      const table = new Tabulator("#tabela-publicacoes", {{
+        data: DATA,
+        layout: "fitColumns",
+        height: (DATA.length < 30 ? "45vh" : "70vh"),
+        responsiveLayout: "collapse",
+        pagination: "local",
+        paginationSize: 100,
+        paginationSizeSelector: [50, 100, 200, 500, 1000],
+        movableColumns: true,
+        headerFilterLiveFilter: true,
+        columns: COLUMNS,
+        locale: true, langs: LANG_PT, locale: "pt-br",
+      }});
+    
+      document.getElementById("pubs-csv").onclick  = () => table.download("csv",  "publicacoes.csv",  {{ bom:true }});
+      document.getElementById("pubs-xlsx").onclick = () => table.download("xlsx", "publicacoes.xlsx", {{ sheetName:"Publicações" }});
+    }});
+    </script>
+    """
+            s += self.paginaBottom()
+            self.salvarPagina(prefixo + '-' + str(numero_pagina) + self.extensaoPagina, s)
+    
         return total_producoes
+         
+    
+
 
     def gerarIndiceDePaginas(self, numeroDePaginas, numeroDePaginaAtual, prefixo):
         if numeroDePaginas == 1:
@@ -794,6 +926,7 @@ class GeradorDePaginasWeb:
 
 
     def gerarPaginaDeGrafosDeColaboracoes(self):
+        # 1) texto introdutório (monta lista de tipos incluídos)
         lista = ''
         if self.grupo.obterParametro('grafo-incluir_artigo_em_periodico'):
             lista += 'Artigos completos publicados em periódicos, '
@@ -815,639 +948,1157 @@ class GeradorDePaginasWeb:
             lista += 'Apresentações de trabalho, '
         if self.grupo.obterParametro('grafo-incluir_outro_tipo_de_producao_bibliografica'):
             lista += 'Demais tipos de produção bibliográfica, '
-
-        lista = lista.strip().strip(",")
-
+        if self.grupo.obterParametro('grafo-incluir_software_com_registro'):
+            lista += 'Programas de computador com registro, '
+        if self.grupo.obterParametro('grafo-incluir_software_sem_registro'):
+            lista += 'Programas de computador sem registro, '
+        if self.grupo.obterParametro('grafo-incluir_produto_tecnologico'):
+            lista += 'Produtos tecnológicos, '
+        if self.grupo.obterParametro('grafo-incluir_processo_ou_tecnica'):
+            lista += 'Processos ou técnicas, '
+        if self.grupo.obterParametro('grafo-incluir_trabalho_tecnico'):
+            lista += 'Trabalhos técnicos , '
+        if self.grupo.obterParametro('grafo-incluir_outro_tipo_de_producao_tecnica'):
+            lista += 'Demais tipos de produção técnica, '
+        if self.grupo.obterParametro('grafo-incluir_entrevista_mesas_e_comentarios'):
+            lista += 'Entrevistas, mesas redondas, programas e comentários na mídia, '
+        if self.grupo.obterParametro('grafo-incluir_producao_artistica'):
+            lista += 'Produções artísticas, '
+        lista = lista.rstrip(', ')
+    
+        # 2) cabeçalho
         s = self.pagina_top()
-        s += '\n<h3>Grafo de colabora&ccedil;&otilde;es</h3> \
-        <a href=membros' + self.extensaoPagina + '>' + str(self.grupo.numeroDeMembros()) + ' curriculos Lattes</a> foram considerados, \
-        gerando os seguintes grafos de colabora&ccedil;&otilde;es encontradas com base nas produ&ccedil;&otilde;es: <i>' + lista + '</i>. <br><p>'
-
-        prefix = self.grupo.obterParametro('global-prefixo') + '-' if not self.grupo.obterParametro(
-            'global-prefixo') == '' else ''
-        # s+='Veja <a href="grafoDeColaboracoesInterativo'+self.extensaoPagina+'?entradaScriptLattes=./'+prefix+'matrizDeAdjacencia.xml">na seguinte página</a> uma versão interativa do grafo de colabora&ccedil;&otilde;es.<br><p><br><p>'
-
-        s += '\nClique no nome dentro do vértice para visualizar o currículo Lattes. Para cada nó: o valor entre colchetes indica o número \
-        de produ&ccedil;&otilde;es feitas em colabora&ccedil;&atilde;o apenas com os outros membros do próprio grupo. <br>'
-
-        if self.grupo.obterParametro('grafo-considerar_rotulos_dos_membros_do_grupo'):
-            s += 'As cores representam os seguintes rótulos: '
-            for i in range(0, len(self.grupo.listaDeRotulos)):
-                rot = self.grupo.listaDeRotulos[i]
-                cor = self.grupo.listaDeRotulosCores[i]
-                if rot == '':
-                    rot = '[Sem rótulo]'
-                s += '<span style="background-color:' + cor + '">&nbsp;&nbsp;&nbsp;&nbsp;</span>' + rot + ' '
-        s += '\
-        <ul> \
-        <li><b>Grafo de colabora&ccedil;&otilde;es sem pesos</b><br> \
-            <img src=grafoDeColaboracoesSemPesos.png border=1 ISMAP USEMAP="#grafo1"> <br><p> \
-        <li><b>Grafo de colabora&ccedil;&otilde;es com pesos</b><br> \
-            <img src=grafoDeColaboracoesComPesos.png border=1 ISMAP USEMAP="#grafo2"> <br><p> \
-        </ul>'
-
-        cmapx1 = self.grupo.grafosDeColaboracoes.grafoDeCoAutoriaSemPesosCMAPX
-        cmapx2 = self.grupo.grafosDeColaboracoes.grafoDeCoAutoriaComPesosCMAPX
-        s += '<map id="grafo1" name="grafo1">' + cmapx1.decode() + '\n</map>\n'
-        s += '<map id="grafo2" name="grafo2">' + cmapx2.decode() + '\n</map>\n'
-
-        if self.grupo.obterParametro('grafo-incluir_grau_de_colaboracao'):
-            s += '<br><p><h3>Grau de colaboração</h3> \
-                O grau de colaboração (<i>Collaboration Rank</i>) é um valor numérico que indica o impacto de um membro no grafo de colaborações.\
-                <br>Esta medida é similar ao <i>PageRank</i> para grafos direcionais (com pesos).<br><p>'
-
-            ranks, autores, rotulos = list(zip(
-                *sorted(zip(self.grupo.vectorRank, self.grupo.nomes, self.grupo.rotulos), reverse=True)))
-
-            s += '<table border=1><tr> <td><i><b>Collaboration Rank</b></i></td> <td><b>Membro</b></td> </tr>'
-            for i in range(0, len(ranks)):
-                s += '<tr><td>' + str(round(ranks[i], 2)) + '</td><td>' + autores[i] + '</td></tr>'
-            s += '</table> <br><p>'
-
-            if self.grupo.obterParametro('grafo-considerar_rotulos_dos_membros_do_grupo'):
-                for i in range(0, len(self.grupo.listaDeRotulos)):
-                    somaAuthorRank = 0
-
-                    rot = self.grupo.listaDeRotulos[i]
-                    cor = self.grupo.listaDeRotulosCores[i]
-                    s += '<b><span style="background-color:' + cor + '">&nbsp;&nbsp;&nbsp;&nbsp;</span>' + rot + '</b><br>'
-
-                    s += '<table border=1><tr> <td><i><b>AuthorRank</b></i></td> <td><b>Membro</b></td> </tr>'
-                    for i in range(0, len(ranks)):
-                        if rotulos[i] == rot:
-                            s += '<tr><td>' + str(round(ranks[i], 2)) + '</td><td>' + autores[i] + '</td></tr>'
-                            somaAuthorRank += ranks[i]
-                    s += '</table> <br> Total: ' + str(round(somaAuthorRank, 2)) + '<br><p>'
-
+        s += f"""
+    <h3>Grafo de colaborações</h3>
+    <p>
+      <a href="membros{self.extensaoPagina}">
+        {self.grupo.numeroDeMembros()} currículos Lattes
+      </a> geraram este grafo baseado em <em>{lista}</em>.<br>
+      O tamanho do vértice é proporcional ao número de colaboradores. A espessura da aresta é proporcional ao número de colaborações.
+    </p>
+    """
+    
+        # 3) grafo -> JSON (para injetar no JS)
+        G = self.grupo.grafoDeColaboracoes
+        from networkx.readwrite import json_graph
+        import json
+        data = json_graph.node_link_data(G)
+        graph_js = json.dumps(data, ensure_ascii=False)
+    
+        # 4) estilos + estrutura + D3 (com tooltip/ellipsis nas tabelas ao final)
+        s += r"""
+    <style>
+      .viz-wrap { display:flex; gap:1rem; }
+      #info-pane {
+        flex:1; max-height: 1200px; overflow:auto;
+        border:1px solid #ddd; padding:0.75rem; background:#fafafa;
+      }
+      .toolbar {
+        display:flex; gap:0.5rem; align-items:center; margin-bottom:0.5rem; flex-wrap: wrap;
+      }
+      .toolbar input[type="text"] {
+        flex:1; min-width: 220px; padding:0.5rem; border:1px solid #ccc; border-radius:8px;
+      }
+      .toolbar button {
+        padding:0.5rem 0.75rem; border:1px solid #ccc; border-radius:8px; background:#fff; cursor:pointer;
+      }
+      .legend { display:flex; align-items:center; gap:.5rem; flex-wrap:wrap;
+        font: 14px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, sans-serif; }
+      .legend .title { margin-right:.25rem; }
+      .legend .item { display:inline-flex; align-items:center; gap:.35rem; margin-right:.75rem; }
+      .legend .swatch { width:14px; height:14px; display:inline-block; border-radius:2px; border:1px solid rgba(0,0,0,.2); }
+    
+      #viz-container { flex:3; height: 70vh; min-height: 620px; border:1px solid #ccc; position:relative; }
+      @media (min-width: 1200px) { #viz-container { height: 1200px; } }
+      @media (max-height: 600px) { #viz-container { height: 60vh; } }
+    
+      .node { cursor:grab; }
+      .node:active { cursor:grabbing; }
+      .node.selected circle { stroke:#111; stroke-width:1px; }
+      .dimmed { opacity:0.15; }
+    
+      .label { font: 5px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, sans-serif; pointer-events:none; }
+      .edge-label { font-size: 3px; line-height: 1; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, sans-serif; fill:#555; }
+      .edge { stroke:#aaa; stroke-opacity:0.85; }
+      .edge.highlight { stroke:#333; }
+      .hidden { display:none !important; }
+    
+      /* Ellipsis + tooltip nas tabelas (aplicado quando Tabulator monta) */
+      #tabela-vertices .tabulator-cell,
+      #tabela-arestas  .tabulator-cell {
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        overflow: hidden;
+      }
+    </style>
+    
+    <div class="viz-wrap">
+      <div style="flex:3; display:flex; flex-direction:column;">
+        <div class="toolbar">
+          <div id="legend" class="legend">
+            <span class="title">As cores representam os seguintes rótulos:</span>
+          </div>
+          <button id="btnToggleLabels" title="Mostrar/ocultar rótulos (vértices e arestas)">Ocultar rótulos</button>
+          <input id="searchBox" type="text" placeholder="Buscar pesquisador (nome ou ID)..." />
+          <button id="btnSearch">Buscar</button>
+          <button id="btnClear">Limpar seleção</button>
+        </div>
+    
+        <div id="viz-container">
+          <svg id="viz" width="100%" height="100%"></svg>
+        </div>
+      </div>
+    
+      <div id="info-pane">
+        <h4>Informação do Pesquisador</h4>
+        <p>Clique em um nó (ou use a busca) para ver detalhes aqui.</p>
+      </div>
+    </div>
+    
+    <p>Você pode baixar o grafo em formato GEXF:
+      <a href="grafo_de_colaboracoes.gexf" download="grafo_de_colaboracoes.gexf">grafo_de_colaboracoes.gexf</a>
+    </p>
+    
+    <!-- D3 global (sem módulos) -->
+    <script src="js/d3.min.js"></script>
+    
+    <script>
+      // ======= dados =======
+      var graphData = __GRAPH_JS__;
+      var nodes = graphData.nodes.map(function(n,i){
+        return {
+          id: (n.id != null ? n.id : String(i)),
+          label: (n.label != null ? n.label : (n.id != null ? n.id : String(i))),
+          size: (n.size != null ? n.size : (4 + (n.degree || 0) * 0.6)),
+          color: (n.color != null ? n.color : "#1f77b4"),
+          instituicao: n.instituicao,
+          url: n.url,
+          atualizacaoCV: n.atualizacaoCV,
+          periodo: n.periodo,
+          rotulo: n.rotulo,
+          nomePrimeiraGrandeArea: n.nomePrimeiraGrandeArea,
+          nomePrimeiraArea: n.nomePrimeiraArea,
+          publicacoesEmCoautoria: n.publicacoesEmCoautoria,
+          degree: n.degree,
+          artigosPeriodicos: n.artigosPeriodicos,
+          artigosEventos: n.artigosEventos,
+          capitulosDeLivros: n.capitulosDeLivros,
+          livros: n.livros,
+          enderecoProfissional: n.enderecoProfissional
+        };
+      });
+      var links = graphData.links.map(function(e){
+        return { source:e.source, target:e.target, weight:(e.weight||1), color:(e.color||"#aaa") };
+      });
+    
+      // ======= dados para a TABELA (vértices) =======
+      window.__VERTEX_TABLE_DATA__ = nodes.map(function(n){
+        var m = (n.atualizacaoCV||"").toString().match(/(\d{2})\/(\d{2})\/(\d{4})/);
+        var ymd = m ? (parseInt(m[3])*10000 + parseInt(m[2]) * 100 + parseInt(m[1])) : 0;
+        return {
+          id: n.id,
+          nome: n.label,
+          instituicao: n.instituicao || "",
+          url: n.url || "",
+          atualizacao: n.atualizacaoCV || "",
+          atualizacao_num: ymd,
+          periodo: n.periodo || "",
+          rotulo: n.rotulo || "",
+          grande_area: n.nomePrimeiraGrandeArea || "",
+          area: n.nomePrimeiraArea || "",
+          publicacoesEmCoautoria: +n.publicacoesEmCoautoria || 0,
+          degree: +n.degree || 0,
+          artigosPeriodicos: +n.artigosPeriodicos || 0,
+          artigosEventos: +n.artigosEventos || 0,
+          capitulosDeLivros: +n.capitulosDeLivros || 0,
+          livros: +n.livros || 0,
+          enderecoProfissional: n.enderecoProfissional || ""
+        };
+      });
+    
+      // ======= TABELA (arestas) – pares de membros (únicos, peso >= 1) =======
+      (function buildEdgeTableData(){
+        var byId = new Map(nodes.map(function(n){ return [String(n.id), n]; }));
+        function normId(x){ return (typeof x === "object" && x !== null) ? String(x.id) : String(x); }
+    
+        // vizinhanças
+        var neigh = new Map();
+        nodes.forEach(function(n){ neigh.set(String(n.id), new Set()); });
+        links.forEach(function(e){
+          var s = normId(e.source), t = normId(e.target);
+          if (!neigh.has(s)) neigh.set(s, new Set());
+          if (!neigh.has(t)) neigh.set(t, new Set());
+          neigh.get(s).add(t); neigh.get(t).add(s);
+        });
+    
+        var seen = new Set();
+        var rows = [];
+        links.forEach(function(e){
+          var s = normId(e.source), t = normId(e.target);
+          var w = +e.weight || 0;
+          if (w < 1) return;
+          var a = s < t ? s : t, b = s < t ? t : s; // par único
+          var key = a + "||" + b;
+          if (seen.has(key)) return;
+          seen.add(key);
+    
+          var nA = byId.get(a), nB = byId.get(b);
+          if (!nA || !nB) return;
+    
+          // colaboradores em comum (interseção, excluindo o próprio par)
+          var neighA = new Set(neigh.get(a) || []);
+          var neighB = new Set(neigh.get(b) || []);
+          var comuns = 0;
+          neighA.forEach(function(x){
+            if (x === a || x === b) return;
+            if (neighB.has(x)) comuns += 1;
+          });
+    
+          rows.push({
+            aresta: [nA.label, nB.label].sort(function(x,y){ return String(x).localeCompare(String(y)); }).join(", "),
+            colabs:  w,
+            comuns:  comuns
+          });
+        });
+    
+        // ordena: colabs desc, comuns desc, aresta asc
+        rows.sort(function(r1, r2){
+          if (r2.colabs !== r1.colabs) return r2.colabs - r1.colabs;
+          if (r2.comuns !== r1.comuns) return r2.comuns - r1.comuns;
+          return r1.aresta.localeCompare(r2.aresta);
+        });
+    
+        window.__EDGE_TABLE_DATA__ = rows;
+      })();
+    
+      // ======= D3: simulação/zoom/legenda =======
+      var svg = d3.select("#viz"),
+          g = svg.append("g"),
+          zoom = d3.zoom().scaleExtent([0.2, 5]).on("zoom", function(ev){ g.attr("transform", ev.transform); });
+      svg.call(zoom);
+    
+      function getBox() { return document.getElementById("viz-container").getBoundingClientRect(); }
+      var box = getBox();
+      var width = box.width, height = box.height;
+    
+      var weights = links.map(function(d){ return +d.weight || 0; });
+      var minW = d3.min(weights), maxW = d3.max(weights);
+      var edgeWidth = d3.scaleLinear().domain([minW, maxW]).range([1.2, 10]).clamp(true);
+      var edgeOpacity = d3.scaleLinear().domain([minW, maxW]).range([0.56,0.79]).clamp(true);
+    
+      var degrees = nodes.map(function(d){ return +d.degree || 0; });
+      var minD = d3.min(degrees) || 0;
+      var maxD = d3.max(degrees) || 1;
+      var nodeRadius = d3.scaleSqrt().domain([minD, maxD]).range([6, 11]).clamp(true);
+      function R(d){ return nodeRadius(+d.degree || 0); }
+    
+      var edgeLayer = g.append("g").attr("class","edges");
+      var nodeLayer = g.append("g").attr("class","nodes");
+      var labelLayer = g.append("g").attr("class","labels");
+      var edgeLabelLayer = g.append("g").attr("class","edge-labels");
+    
+      var edge = edgeLayer.selectAll("path")
+        .data(links).join("path")
+        .attr("class","edge")
+        .attr("id", function(_,i){ return "e"+i; })
+        .attr("stroke", function(d){ return d.color; })
+        .attr("stroke-width", function(d){ return edgeWidth(+d.weight || 0); })
+        .attr("fill","none")
+        .attr("stroke-opacity", function(d){ return edgeOpacity(+d.weight || 0); });
+    
+      var edgeLabels = edgeLabelLayer.selectAll("text")
+        .data(links).join("text")
+        .attr("class","edge-label")
+        .append("textPath")
+        .attr("href", function(_,i){ return "#e"+i; })
+        .attr("startOffset","50%")
+        .attr("text-anchor","middle")
+        .text(function(d){ return d.weight ? String(d.weight) : ""; });
+    
+      var node = nodeLayer.selectAll("g.node")
+        .data(nodes, function(d){ return d.id; })
+        .join(function(enter){
+          var g = enter.append("g").attr("class","node");
+          g.append("circle")
+            .attr("r", function(d){ return R(d); })
+            .attr("fill", function(d){ return d.color; })
+            .attr("stroke", "#333")
+            .attr("stroke-width", 0.17);
+          return g;
+        });
+    
+      var labels = labelLayer.selectAll("text")
+        .data(nodes, function(d){ return d.id; })
+        .join("text")
+        .attr("class","label")
+        .attr("text-anchor","middle")
+        .attr("dy","-0.05em")
+        .text(function(d){ return d.label; });
+    
+      var centerForce = d3.forceCenter(width/2, height/2);
+      var sim = d3.forceSimulation(nodes)
+        .force("link", d3.forceLink(links).id(function(d){return d.id;}).distance(40).strength(0.6))
+        .force("charge", d3.forceManyBody().strength(-60))
+        .force("collide", d3.forceCollide().radius(function(d){ return R(d)+6; }).iterations(2))
+        .force("center", centerForce)
+        .on("tick", ticked)
+        .on("end", maybeFit);
+    
+      var fitted = false, fitTimeout = setTimeout(function(){ maybeFit(); }, 1000);
+    
+      function ticked(){
+        edge.attr("d", function(d){ return "M"+d.source.x+","+d.source.y+" L"+d.target.x+","+d.target.y; });
+        node.attr("transform", function(d){ return "translate("+d.x+", "+d.y+")"; });
+        labels.attr("x", function(d){ return d.x; }).attr("y", function(d){ return d.y; });
+      }
+    
+      function maybeFit(){
+        if (fitted) return;
+        fitted = true; clearTimeout(fitTimeout);
+        var xs = nodes.map(function(d){ return d.x; }), ys = nodes.map(function(d){ return d.y; });
+        var minX = Math.min.apply(null, xs), maxX = Math.max.apply(null, xs);
+        var minY = Math.min.apply(null, ys), maxY = Math.max.apply(null, ys);
+        var w = Math.max(1, maxX - minX), h = Math.max(1, maxY - minY);
+        var margin = 40;
+        var kx = (width  - margin*2) / w;
+        var ky = (height - margin*2) / h;
+        var scale = Math.max(0.2, Math.min(3, Math.min(kx, ky)));
+        var tx = (width  - scale*(minX + maxX)) / 2;
+        var ty = (height - scale*(minY + maxY)) / 2;
+        svg.transition().duration(600)
+          .call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
+      }
+    
+      node.call(d3.drag()
+        .on("start", function(ev, d){ if (!ev.active) sim.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+        .on("drag",  function(ev, d){ d.fx = ev.x; d.fy = ev.y; })
+        .on("end",   function(ev, d){ if (!ev.active) sim.alphaTarget(0); d.fx = null; d.fy = null; })
+      );
+    
+      var selectedId = null;
+      function neighborSet(id){
+        var nei = new Set([id]);
+        links.forEach(function(e){
+          var s = (typeof e.source === 'object') ? e.source.id : e.source;
+          var t = (typeof e.target === 'object') ? e.target.id : e.target;
+          if (s === id) nei.add(t);
+          if (t === id) nei.add(s);
+        });
+        return nei;
+      }
+    
+      function renderSelection(){
+        if (!selectedId){
+          node.classed("selected", false);
+          node.classed("dimmed", false);
+          labels.classed("dimmed", false);
+          edge.classed("highlight", false).classed("dimmed", false);
+          edgeLabels.classed("dimmed", false);
+          return;
+        }
+        var keep = neighborSet(selectedId);
+        node.classed("selected", function(d){ return d.id === selectedId; })
+            .classed("dimmed", function(d){ return !keep.has(d.id); });
+        labels.classed("dimmed", function(d){ return !keep.has(d.id); });
+        edge.classed("highlight", function(d){
+              var s = (typeof d.source === 'object') ? d.source.id : d.source;
+              var t = (typeof d.target === 'object') ? d.target.id : d.target;
+              return s === selectedId || t === selectedId;
+            })
+            .classed("dimmed", function(d){
+              var s = (typeof d.source === 'object') ? d.source.id : d.source;
+              var t = (typeof d.target === 'object') ? d.target.id : d.target;
+              return !(s === selectedId || t === selectedId);
+            });
+        edgeLabels.classed("dimmed", function(d){
+          var s = (typeof d.source === 'object') ? d.source.id : d.source;
+          var t = (typeof d.target === 'object') ? d.target.id : d.target;
+          return !(s === selectedId || t === selectedId);
+        });
+      }
+    
+      function fillInfo(d){
+        var pane = document.getElementById("info-pane");
+        var campos = {
+          "Nome": d.label,
+          "Instituição": d.instituicao,
+          "CV": d.url,
+          "Atualização do CV": d.atualizacaoCV,
+          "Período": d.periodo,
+          "Rótulo": d.rotulo,
+          "Primeira Grande Área": d.nomePrimeiraGrandeArea,
+          "Primeira Área": d.nomePrimeiraArea,
+          "Publicações em coautoria": d.publicacoesEmCoautoria,
+          "Número de colaboradores": d.degree,
+          "Artigos em periódicos": d.artigosPeriodicos,
+          "Artigos em eventos": d.artigosEventos,
+          "Capítulos de livro": d.capitulosDeLivros,
+          "Livros": d.livros,
+          "Endereço": d.enderecoProfissional
+        };
+        var html = "<h4>"+(d.label || d.id)+"</h4><ul>";
+        Object.keys(campos).forEach(function(k){
+          var v = campos[k];
+          if (v === undefined || v === null || v === "") return;
+          if (k === "CV"){
+            html += "<li><strong>"+k+":</strong> <a href=\""+v+"\" target=\"_blank\" rel=\"noopener\">"+v+"</a></li>";
+          } else {
+            html += "<li><strong>"+k+":</strong> "+v+"</li>";
+          }
+        });
+        html += "</ul>";
+        pane.innerHTML = html;
+      }
+    
+      function selectNodeById(id){
+        var d = nodes.find(function(n){ return n.id === id; });
+        if (!d) return;
+        selectedId = d.id; fillInfo(d); renderSelection();
+        var t = d3.zoomTransform(svg.node());
+        var scale = Math.max(1.2, t.k);
+        var x = width/2 - d.x * scale;
+        var y = height/2 - d.y * scale;
+        svg.transition().duration(600).call(zoom.transform, d3.zoomIdentity.translate(x, y).scale(scale));
+      }
+      node.on("click", function(_, d){ selectNodeById(d.id); });
+    
+      function norm(s){ return (s||"").toString().normalize("NFD").replace(/\p{Diacritic}/gu,"").toLowerCase().trim(); }
+      function searchAndSelect(q){
+        var nq = norm(q); if (!nq) return;
+        var hit = nodes.find(function(n){ return norm(n.label) === nq || norm(n.id) === nq; });
+        if (!hit) hit = nodes.find(function(n){ return norm(n.label).indexOf(nq) >= 0; });
+        if (hit) selectNodeById(hit.id);
+      }
+      document.getElementById("btnSearch").addEventListener("click", function(){
+        searchAndSelect(document.getElementById("searchBox").value);
+      });
+      document.getElementById("searchBox").addEventListener("keydown", function(ev){
+        if (ev.key === "Enter") searchAndSelect(ev.target.value);
+      });
+      document.getElementById("btnClear").addEventListener("click", function(){
+        selectedId = null; renderSelection();
+        document.getElementById("info-pane").innerHTML =
+          "<h4>Informação do Pesquisador</h4><p>Clique em um nó (ou use a busca) para ver detalhes aqui.</p>";
+      });
+    
+      var labelsVisible = true;
+      var btnToggle = document.getElementById("btnToggleLabels");
+      function applyLabelsVisibility(){
+        labelLayer.classed("hidden", !labelsVisible);
+        d3.select(".edge-labels").classed("hidden", !labelsVisible);
+      }
+      btnToggle.addEventListener("click", function(){
+        labelsVisible = !labelsVisible;
+        btnToggle.textContent = labelsVisible ? "Ocultar rótulos" : "Mostrar rótulos";
+        applyLabelsVisibility();
+      });
+      applyLabelsVisibility();
+    
+      // legenda (cores por rótulo)
+      var byRotulo = d3.rollup(nodes, function(v){ return v[0].color; }, function(d){ return d.rotulo || "Sem rótulo"; });
+      var legendData = Array.from(byRotulo, function(entry){ return {rotulo: entry[0], color: entry[1]}; });
+      var legend = d3.select("#legend");
+      legend.selectAll("span.item")
+        .data(legendData)
+        .join("span")
+        .attr("class","item")
+        .html(function(d){ return '<span class="swatch" style="background:'+d.color+'"></span>'+d.rotulo; });
+    
+      // refit ao redimensionar
+      var ro = new ResizeObserver(function(){
+        var b = getBox();
+        width = b.width; height = b.height;
+        centerForce = d3.forceCenter(width/2, height/2);
+        sim.force("center", centerForce).alpha(0.05).restart();
+        fitted = false; maybeFit();
+      });
+      ro.observe(document.getElementById("viz-container"));
+    </script>
+    """
+    
+        # 5) TABELAS: VÉRTICES + ARESTAS (com tooltip + ellipsis) — Tabulator
+        s += """
+    <hr style="margin:1.25rem 0">
+    
+    <h3>Vértices</h3>
+    <p>Esta tabela lista todos os atributos usados para compor os vértices do grafo acima.</p>
+    <div class="sl-controls">
+      <button id="vert-csv">⬇️ CSV</button>
+      <button id="vert-xlsx">⬇️ XLSX</button>
+    </div>
+    <div id="tabela-vertices" class="sl-tabela"></div>
+    
+    <h3 style="margin-top:1.5rem;">Arestas (pares de membros)</h3>
+    <p>Veja quais pares de membros mais colaboram e quantos colaboradores em comum possuem.</p>
+    <div class="sl-controls">
+      <button id="edge-csv">⬇️ CSV</button>
+      <button id="edge-xlsx">⬇️ XLSX</button>
+    </div>
+    <div id="tabela-arestas" class="sl-tabela"></div>
+    
+    <!-- Tabulator -->
+    <link href="css/tabulator_site.min.css" rel="stylesheet" />
+    <link href="css/tabulator-scriplattes.css" rel="stylesheet" />
+    <script src="js/tabulator.min.js"></script>
+    <script src="js/xlsx.full.min.js"></script>
+    
+    <script>
+      // Dados vindos dos blocos anteriores
+      var DATA_VERT  = (window.__VERTEX_TABLE_DATA__ || []);
+      var DATA_EDGES = (window.__EDGE_TABLE_DATA__  || []);
+    
+      // Heurística de altura (evita rolagem infinita)
+      function heightFor(n){
+        if (n <= 12) return "auto";
+        if (n <= 60) return "40vh";
+        return "60vh";
+      }
+      var HEIGHT_VERT = heightFor(DATA_VERT.length);
+      var HEIGHT_EDG  = heightFor(DATA_EDGES.length);
+    
+      const LANG_PT = {
+        "pt-br": {
+          "pagination": {
+            "first":"«","first_title":"Primeira",
+            "last":"»","last_title":"Última",
+            "prev":"‹","prev_title":"Anterior",
+            "next":"›","next_title":"Próxima"
+          },
+          "headerFilters": { "default":"⎯ Filtrar ⎯" }
+        }
+      };
+    
+      // Ordenação por data BR via campo auxiliar yyyymmdd
+      function sortDateBR(a, b, aRow, bRow) {
+        var av = (aRow && aRow.getData && aRow.getData().atualizacao_num) || 0;
+        var bv = (bRow && bRow.getData && bRow.getData().atualizacao_num) || 0;
+        return av - bv;
+      }
+    
+      // Formatter de link com title (tooltip no <a>) — usado na coluna "Nome" dos vértices
+      function linkWithTitle(cell) {
+        const data = cell.getData();
+        const url = String(data.url || "#");
+        const label = String(cell.getValue() ?? "");
+        const a = document.createElement("a");
+        a.href = url; a.textContent = label; a.target = "_blank"; a.rel = "noopener"; a.title = label;
+        return a;
+      }
+    
+      // Helper para criar Tabulator com tooltips + ellipsis
+      function createTable(el, data, columns, initialSort, height){
+        const base = {
+          data,
+          layout: "fitColumns",
+          responsiveLayout: "collapse",
+          pagination: "local",
+          paginationSize: 50,
+          paginationSizeSelector: [10, 25, 50, 100, 200, 500],
+          movableColumns: true,
+          initialSort,
+          headerFilterLiveFilter: true,
+          columns,
+          locale: true, langs: LANG_PT, locale: "pt-br",
+          tooltips: true
+        };
+        if (height !== "auto") base.height = height;
+        return new Tabulator(el, base);
+      }
+    
+      // === VÉRTICES ===
+      (function(){
+        const columns = [
+          { title:"ID", field:"id", headerFilter:"input", tooltip:true },
+          { title:"Nome", field:"nome", formatter: linkWithTitle,
+            headerFilter:"input", widthGrow:2, tooltip:true },
+          { title:"Instituição", field:"instituicao", headerFilter:"input", tooltip:true },
+          { title:"Atualização CV", field:"atualizacao", headerFilter:"input", sorter: sortDateBR, tooltip:true },
+          { title:"Período", field:"periodo", headerFilter:"input", tooltip:true },
+          { title:"Rótulo", field:"rotulo", headerFilter:"input", tooltip:true },
+          { title:"Grande área", field:"grande_area", headerFilter:"input", tooltip:true },
+          { title:"Área", field:"area", headerFilter:"input", tooltip:true },
+          { title:"Publicações em coautoria", field:"publicacoesEmCoautoria", hozAlign:"right", sorter:"number", headerFilter:"input", tooltip:true },
+          { title:"Nº colaboradores (grau)", field:"degree", hozAlign:"right", sorter:"number", headerFilter:"input", tooltip:true },
+          { title:"Artigos em periódicos", field:"artigosPeriodicos", hozAlign:"right", sorter:"number", headerFilter:"input", tooltip:true },
+          { title:"Artigos em eventos", field:"artigosEventos", hozAlign:"right", sorter:"number", headerFilter:"input", tooltip:true },
+          { title:"Capítulos de livro", field:"capitulosDeLivros", hozAlign:"right", sorter:"number", headerFilter:"input", tooltip:true },
+          { title:"Livros", field:"livros", hozAlign:"right", sorter:"number", headerFilter:"input", tooltip:true },
+          { title:"Endereço", field:"enderecoProfissional", headerFilter:"input", widthGrow:2, tooltip:true }
+        ];
+        const sort = [{ column:"degree", dir:"desc" }];
+        const t = createTable("#tabela-vertices", DATA_VERT, columns, sort, HEIGHT_VERT);
+        document.getElementById("vert-csv").onclick  = () => t.download("csv",  "vertices_campos.csv", { bom:true });
+        document.getElementById("vert-xlsx").onclick = () => t.download("xlsx", "vertices_campos.xlsx", { sheetName:"Vértices" });
+      })();
+    
+      // === ARESTAS (coluna única "Aresta") ===
+      (function(){
+        const columns = [
+          { title:"Aresta", field:"aresta", headerFilter:"input", widthGrow:3, tooltip:true },
+          { title:"Número de colaborações", field:"colabs", hozAlign:"right", sorter:"number", headerFilter:"input", tooltip:true },
+          { title:"Nº de colaboradores em comum", field:"comuns", hozAlign:"right", sorter:"number", headerFilter:"input", tooltip:true }
+        ];
+        const sort = [{ column:"colabs", dir:"desc" }, { column:"comuns", dir:"desc" }];
+        const t = createTable("#tabela-arestas", DATA_EDGES, columns, sort, HEIGHT_EDG);
+        document.getElementById("edge-csv").onclick  = () => t.download("csv",  "arestas_colaboracoes.csv", { bom:true });
+        document.getElementById("edge-xlsx").onclick = () => t.download("xlsx", "arestas_colaboracoes.xlsx", { sheetName:"Arestas" });
+      })();
+    </script>
+    """
+    
+        # injeta o JSON do grafo no placeholder
+        s = s.replace('__GRAPH_JS__', graph_js)
+    
+        # 6) fim
         s += self.paginaBottom()
-        self.salvarPagina("grafoDeColaboracoes" + self.extensaoPagina, s)
+        self.salvarPagina(f"grafoDeColaboracoes{self.extensaoPagina}", s)
+    
 
-        # grafo interativo
+      
+    def gerar_pagina_de_membros(self):   
+        import json, re
+    
+        def _s(val):
+            return '' if val is None else str(val)
+    
+        def _len(x):
+            try:
+                return int(len(x))
+            except Exception:
+                return 0
+    
+        def _date_ddmmyyyy_only(texto):
+            """
+            Extrai 'dd/mm/yyyy' de uma string (ex.: '23/09/2024 12:30:00')
+            e devolve (dd/mm/yyyy, yyyymmdd_int). Em falha, ('', 0).
+            """
+            s = _s(texto)
+            m = re.search(r'(\d{2})/(\d{2})/(\d{4})', s)
+            if not m:
+                return '', 0
+            d, mth, y = m.group(1), m.group(2), m.group(3)
+            try:
+                ymd = int(y) * 10000 + int(mth) * 100 + int(d)
+            except Exception:
+                ymd = 0
+            return f"{d}/{mth}/{y}", ymd
+    
+        n_membros = _len(getattr(self.grupo, "listaDeMembros", []))
+        # Altura adaptativa
+        if n_membros <= 20:
+            table_height = "auto"
+        elif n_membros <= 70:
+            table_height = "70vh"
+        else:
+            table_height = "90vh"
+    
         s = self.pagina_top()
-        s += '<applet code=MyGraph.class width=1280 height=800 archive="http://www.vision.ime.usp.br/creativision/graphview/graphview.jar,http://www.vision.ime.usp.br/creativision/graphview/prefuse.jar"></applet></body></html>'
-        s += self.paginaBottom()
-        self.salvarPagina("grafoDeColaboracoesInterativo" + self.extensaoPagina, s)
-
-    @staticmethod
-    def producao_qualis(elemento, membro):
-        tabela_template = "<table style=\"width: 100%; display: block; overflow-x: auto;\"><tbody>" \
-                          "<br><span style=\"font-size:14px;\"><b>Totais de publicações com Qualis:</b></span><br><br>" \
-                          "<div style=\"width:100%; overflow-x:scroll;\">{body}</div>" \
-                          "</tbody></table>"
-
-        first_column_template = '<div style="float:left; width:200px; height: auto; border: 1px solid black; border-collapse: collapse; margin-left:0px; margin-top:0px;' \
-                                ' background:#CCC; vertical-align: middle; padding: 4px 0; {extra_style}"><b>{header}</b></div>'
-        header_template = '<div style="float:left; width:{width}px; height: auto; border-style: solid; border-color: black; border-width: 1 1 1 0; border-collapse: collapse; margin-left:0px; margin-top:0px;' \
-                          ' background:#CCC; text-align: center; vertical-align: middle; padding: 4px 0;"><b>{header}</b></div>'
-        line_template = '<div style="float:left; width:{width}px; height: auto; border-style: solid; border-color: black; border-width: 1 1 1 0; border-collapse: collapse; margin-left:0px; margin-top:0px;' \
-                        ' background:#EAEAEA; text-align: center; vertical-align: middle; padding: 4px 0;">{value}</div>'  # padding:4px 6px;
-
-        cell_size = 40
-        num_estratos = len(membro.tabela_qualis['estrato'].unique())
-
-        header_ano = first_column_template.format(header='Ano', extra_style='text-align: center;')
-        header_estrato = first_column_template.format(header='Área \\ Estrato', extra_style='text-align: center;')
-
-        for ano in sorted(membro.tabela_qualis['ano'].unique()):
-            header_ano += header_template.format(header=ano, width=num_estratos * (cell_size + 1) - 1)
-            for estrato in sorted(membro.tabela_qualis['estrato'].unique()):
-                header_estrato += header_template.format(header=estrato, width=cell_size)
-
-        if membro.tabela_qualis and not membro.tabela_qualis.empty():
-            pt = membro.tabela_qualis.pivot_table(columns=['area', 'ano', 'estrato'], values='freq')
-        lines = ''
-        for area in sorted(membro.tabela_qualis['area'].unique()):
-            lines += first_column_template.format(header=area, extra_style='')
-            for ano in sorted(membro.tabela_qualis['ano'].unique()):
-                for estrato in sorted(membro.tabela_qualis['estrato'].unique()):
-                    try:
-                        lines += line_template.format(value=pt.ix[area, ano, estrato], width=cell_size)
-                    except IndexingError:
-                        lines += line_template.format(value='&nbsp;', width=cell_size)
-            lines += '<div style="clear:both"></div>'
-
-        tabela_body = header_ano
-        tabela_body += '<div style="clear:both"></div>'
-        tabela_body += header_estrato
-        tabela_body += '<div style="clear:both"></div>'
-        tabela_body += lines
-
-        tabela = tabela_template.format(body=tabela_body)
-
-        # first = True
-        # # FIXME: considerar as áreas
-        # for ano in sorted(membro.tabela_qualis['ano'].unique()):
-        #     if first:
-        #         first = False
-        #         display = "block"
-        #     else:
-        #         display = "none"
-        #
-        #     # esquerda = '<a class="ano_esquerda" rel="{ano}" rev="{rev}" style="cursor:pointer; padding:2px; border:1px solid #C3FDB8;">«</a>'.format(
-        #     #     ano=ano, rev=str(elemento))
-        #     # direita = '<a class="ano_direita" rel="{ano}" rev="{rev}" style="cursor:pointer; padding:2px; border:1px solid #C3FDB8;">«</a>'.format(
-        #     #     ano=ano, rev=str(elemento))
-        #     # tabela += '<div id="ano_{ano}_{elemento}" style="display: {display}">{esquerda}<b>{ano}</b>{direita}<br/><br/>'.format(
-        #     #           ano=ano, elemento=elemento, display=display, esquerda=esquerda, direita=direita)
-        #     chaves = ''
-        #     valores = ''
-        #
-        #     for tipo, frequencia in membro.tabelaQualisDosAnos[ano].items():
-        #         # FIXME: terminar de refatorar
-        #         if tipo == "Qualis nao identificado":
-        #             tipo = '<span title="Qualis nao identificado">QNI</span>'
-        #
-        #         chaves += '<div style="float:left; width:70px; border:1px solid #000; margin-left:-1px; margin-top:-1px; background:#CCC; padding:4px 6px;"><b>' + str(
-        #             tipo) + '</b></div>'
-        #         valores += '<div style="float:left; width:70px; border:1px solid #000; margin-left:-1px; margin-top:-1px; background:#EAEAEA; padding:4px 6px;">' + str(
-        #             frequencia) + '</div>'
-        #
-        #     tabela += '<div>' + chaves + '</div>'
-        #     tabela += '<div style="clear:both"></div>'
-        #     tabela += '<div>' + valores + '</div>'
-        #     tabela += '<div style="clear:both"></div>'
-        #     tabela += "<br><br></div>"
-        # tabTipo += '<div>'
-        # chaves = ''
-        # valores = ''
-        # for chave, valor in membro.tabelaQualisDosTipos.items():
-        #
-        #     if (chave == "Qualis nao identificado"):
-        #         chave = "QNI"
-        #
-        #     chaves += '<div style="float:left; width:70px; border:1px solid #000; margin-left:-1px; margin-top:-1px; background:#CCC; padding:4px 6px;"><b>' + str(
-        #         chave) + '</b></div>'
-        #     valores += '<div style="float:left; width:70px; border:1px solid #000; margin-left:-1px; margin-top:-1px; background:#EAEAEA; padding:4px 6px;">' + str(
-        #         valor) + '</div>'
-        # tabTipo += '<div>' + chaves + '</div>'
-        # tabTipo += '<div style="clear:both"></div>'
-        # tabTipo += '<div>' + valores + '</div>'
-        # tabTipo += '<div style="clear:both"></div>'
-        # tabTipo += "<br><br></div><br><br>"
-        return tabela
-
-    def gerar_pagina_de_membros(self):
-        s = self.pagina_top()
-        #s += u'\n<h3>Lista de membros</h3> <table id="membros" class="collapse-box" ><tr>\
-        s += '\n<h3>Lista de membros</h3> <table id="membros" class="sortable" ><tr>\
-                <th></th>\
-                <th></th>\
-                <th><b><font size=-1>Rótulo/Grupo</font></b></th>\
-                <th><b><font size=-1>Bolsa CNPq</font></b></th>\
-                <th><b><font size=-1>Período de<br>análise individual</font></b></th>\
-                <th><b><font size=-1>Data de<br>atualização do CV</font><b></th>\
-                <th><b><font size=-1>Grande área</font><b></th>\
-                <th><b><font size=-1>Área</font><b></th>\
-                <th><b><font size=-1>Instituição</font><b></th>\
-                </tr>'
-        
-        elemento = 0
+    
+        # CSS/JS do Tabulator + tema local
+        s += """
+    <link href="css/tabulator_site.min.css" rel="stylesheet" />
+    <link href="css/tabulator-scriplattes.css" rel="stylesheet" />
+    <script src="js/tabulator.min.js"></script>
+    <script src="js/xlsx.full.min.js"></script>
+    
+    <style>
+    /* Ellipsis nas células: mostra "..." e deixa o tooltip trabalhar */
+    #tabela-membros .tabulator-cell {
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+    }
+    </style>
+    """
+    
+        # -------------------------
+        # Dados para a tabela
+        # -------------------------
+        membros_data = []
         for membro in self.grupo.listaDeMembros:
-            elemento    += 1
-            bolsa        = membro.bolsaProdutividade  if membro.bolsaProdutividade else ''
-            rotulo       = membro.rotulo if not membro.rotulo == '[Sem rotulo]' else ''
-            rotulo       = rotulo
-            nomeCompleto = membro.nomeCompleto #unicodedata.normalize('NFKD', membro.nomeCompleto).encode('ASCII', 'ignore')
-
+            # mantém a geração da página individual
             self.gerar_pagina_individual_de_membro(membro)
-
-            #print " "
-            #nomeCompleto = membro.nomeCompleto
-            #print nomeCompleto
-            #print type(nomeCompleto)
-            #print " --------------------------------------------"
-            #nomeCompleto = membro.nomeCompleto
-
-            # html_qualis = self.producao_qualis(elemento, membro)
-            ##         <td valign="center" height="40px">' + str(elemento) + '.</td> \
-            ##        <td valign="top" height="40px"><img src="' + membro.foto + '" width="40px"></td> \
-
-            s += '\n<tr class="testetabela"> \
-                     <td valign="center">{0}.</td> \
-                     <td><a href="membro-{1}.html"> {2}</a></td> \
-                     <td><font size=-2>{3}</font></td> \
-                     <td><font size=-2>{4}</font></td> \
-                     <td><font size=-2>{5}</font></td> \
-                     <td><font size=-2>{6}</font></td> \
-                     <td><font size=-2>{7}</font></td> \
-                     <td><font size=-2>{8}</font></td> \
-                     <td><font size=-2>{9}</font></td> \
-                 </tr>'.format(str(elemento),
-                         membro.idLattes,
-                         nomeCompleto,
-                         rotulo,
-                         bolsa,
-                         membro.periodo,
-                         membro.atualizacaoCV,
-                         membro.nomePrimeiraGrandeArea,
-                         membro.nomePrimeiraArea,
-                         membro.instituicao)
-
-            # <td class="centered"><font size=-1>' + u'Produção com Qualis' + '</font></td> \
-
-            # s += '<tr><td colspan="9"> \
-            #      ' + html_qualis + ' \
-            #      </td></tr>'
-
-        s += '\n</table>'
-
-        #add jquery and plugins
-        # s += '<script src="../../js/jexpand/jExpand.js"></script>' \
-        #      '<script>' \
-        #      '  $(document).ready(function(){' \
-        #      '    $(".collapse-box").jExpand();' \
-        #      '  });' \
-        #      '</script>'
-
-        s += '<script>' \
-             '  $(document).ready( function () {' \
-             '    $(\'#membros\').DataTable();' \
-             '  });' \
-             '</script>'
-
-
-        # $(".ano_esquerda").live("click", function(e){\
-        #     var anoAtual = parseInt($(this).attr("rel"));\
-        #     var contador = $(this).attr("rev");\
-        #     if(anoAtual > ' + str(anoInicio) + '){\
-        #         $("#ano_"+anoAtual+"_"+contador).css("display", "none");\
-        #         $("#ano_"+(anoAtual-1)+"_"+contador).css("display", "block");\
-        #     }\
-        # });\
-        # $(".ano_direita").live("click", function(e){\
-        #     var anoAtual = parseInt($(this).attr("rel"));\
-        #     var contador = $(this).attr("rev");\
-        #     if(anoAtual < ' + str(anoFim) + '){\
-        #         $("#ano_"+anoAtual+"_"+contador).css("display", "none");\
-        #         $("#ano_"+(anoAtual+1)+"_"+contador).css("display", "block");\
-        #     }\
-        # });\
-
+    
+            nome   = _s(getattr(membro, "nomeCompleto", ""))
+            rotulo = _s(getattr(membro, "rotulo", ""))
+            bolsa  = _s(getattr(membro, "bolsaProdutividade", ""))
+            periodo = _s(getattr(membro, "periodo", ""))
+    
+            atual_str, atual_num = _date_ddmmyyyy_only(getattr(membro, "atualizacaoCV", ""))
+    
+            membros_data.append({
+                "nome": nome,
+                "url": f"membro-{_s(getattr(membro, 'idLattes', ''))}.html",
+                "id_lattes": _s(getattr(membro, 'idLattes', '')),
+                "rotulo_grupo": rotulo,  
+                "bolsa": bolsa,
+                "periodo": periodo,
+                "atualizacao": atual_str,
+                "atualizacao_num": atual_num,  # usado para ordenar
+                "grande_area": _s(getattr(membro, "nomePrimeiraGrandeArea", "")),
+                "area": _s(getattr(membro, "nomePrimeiraArea", "")),
+                "instituicao": _s(getattr(membro, "instituicao", "")),
+            })
+    
+        s += """
+    <h3>Lista de membros</h3>
+    <div class="sl-controls">
+      <button id="membros-csv">⬇️ CSV</button>
+      <button id="membros-xlsx">⬇️ XLSX</button>
+    </div>
+    <div id="tabela-membros" class="sl-tabela" id="tabela-membros"></div>
+    """
+    
+        # -------------------------
+        # Script Tabulator
+        # -------------------------
+        s += f"""
+    <script>
+    const DATA_MEMBROS = {json.dumps(membros_data, ensure_ascii=False)};
+    const TABLE_HEIGHT = "{table_height}"; // "auto" | "70vh" | "90vh"
+    
+    const LANG_PT = {{
+      "pt-br": {{
+        "pagination": {{
+          "first":"«","first_title":"Primeira",
+          "last":"»","last_title":"Última",
+          "prev":"‹","prev_title":"Anterior",
+          "next":"›","next_title":"Próxima"
+        }},
+        "headerFilters": {{ "default":"⎯ Filtrar ⎯" }}
+      }}
+    }};
+    
+    // Ordenador para data BR usando campo auxiliar yyyymmdd (numérico)
+    function sortDateBR(a, b, aRow, bRow, column, dir, sorterParams) {{
+      const av = aRow?.getData()?.atualizacao_num ?? 0;
+      const bv = bRow?.getData()?.atualizacao_num ?? 0;
+      return av - bv;
+    }}
+    
+    // Formatter de link com title (tooltip no próprio <a>)
+    function linkWithTitle(cell, formatterParams, onRendered) {{
+      const data = cell.getData();
+      const url = data && data.url ? String(data.url) : "#";
+      const label = String(cell.getValue() ?? "");
+      const a = document.createElement("a");
+      a.href = url;
+      a.textContent = label;
+      a.target = "_blank";
+      a.rel = "noopener";
+      a.title = label; // <-- tooltip no link
+      return a;
+    }}
+    
+    function createTable(el, data, columns, initialSort) {{
+      const base = {{
+        data,
+        layout: "fitColumns",
+        responsiveLayout: "collapse",
+        pagination: "local",
+        paginationSize: 50,
+        paginationSizeSelector: [10, 25, 50, 100, 200, 500],
+        movableColumns: true,
+        initialSort,
+        headerFilterLiveFilter: true,
+        columns,
+        locale: true, langs: LANG_PT, locale: "pt-br",
+        tooltips: true    // <-- tooltip global (para colunas sem link)
+      }};
+      if (TABLE_HEIGHT !== "auto") {{
+        base.height = TABLE_HEIGHT;
+      }}
+      return new Tabulator(el, base);
+    }}
+    
+    document.addEventListener("DOMContentLoaded", function(){{
+      const columns = [
+        // Nome com link + title no próprio <a>
+        {{ title:"Nome", field:"nome", formatter: linkWithTitle,
+           headerFilter:"input", widthGrow:3, tooltip:true }},
+    
+        // Demais colunas (tooltip global já cobre)
+        {{ title:"ID Lattes", field:"id_lattes", headerFilter:"input", tooltip:true }},
+        {{ title:"Rótulo/Grupo", field:"rotulo_grupo", headerFilter:"input", tooltip:true }},
+        {{ title:"Bolsa CNPq", field:"bolsa", headerFilter:"input", tooltip:true }},
+        {{ title:"Período de análise individual", field:"periodo", headerFilter:"input", tooltip:true }},
+        {{ title:"Data de atualização do CV", field:"atualizacao", headerFilter:"input", sorter: sortDateBR, tooltip:true }},
+        {{ title:"Grande área", field:"grande_area", headerFilter:"input", tooltip:true }},
+        {{ title:"Área", field:"area", headerFilter:"input", tooltip:true }},
+        {{ title:"Instituição", field:"instituicao", headerFilter:"input", tooltip:true }},
+      ];
+    
+      const t = createTable("#tabela-membros", DATA_MEMBROS, columns, [{{ column: "nome", dir: "asc" }}]);
+    
+      document.getElementById("membros-csv").onclick  = () => t.download("csv",  "lista_membros.csv", {{ bom:true }});
+      document.getElementById("membros-xlsx").onclick = () => t.download("xlsx", "lista_membros.xlsx", {{ sheetName:"Membros" }});
+    }});
+    </script>
+    """
         s += self.paginaBottom()
-
         self.salvarPagina("membros" + self.extensaoPagina, s)
-
-    def gerar_pagina_de_metricas(self):
+             
+ 
+    def gerar_pagina_de_metricas(self):   
+        def _s(val):
+            return '' if val is None else str(val)
+    
+        def _int(n):
+            try:
+                return int(n)
+            except Exception:
+                return 0
+    
+        def _len(x):
+            try:
+                return int(len(x))
+            except Exception:
+                return 0
+    
+        def _date_ddmmyyyy_only(texto):
+            """
+            Extrai 'dd/mm/yyyy' de uma string (ex.: '23/09/2024 12:30:00')
+            e devolve (dd/mm/yyyy, yyyymmdd_int). Em falha, ('', 0).
+            """
+            s = _s(texto)
+            m = re.search(r'(\d{2})/(\d{2})/(\d{4})', s)
+            if not m:
+                return '', 0
+            d, mth, y = m.group(1), m.group(2), m.group(3)
+            try:
+                ymd = int(y) * 10000 + int(mth) * 100 + int(d)
+            except Exception:
+                ymd = 0
+            return f"{d}/{mth}/{y}", ymd
+    
+        n_membros = _len(getattr(self.grupo, "listaDeMembros", []))
+        # altura: auto | 40vh | 60vh
+        if n_membros <= 12:
+            table_height = "auto"
+        elif n_membros <= 60:
+            table_height = "40vh"
+        else:
+            table_height = "60vh"
+    
         s = self.pagina_top()
-
-        s += '\n<h3>Métricas: Produções bibliográficas, técnicas e artísticas</h3> <table id="metricas" class="sortable" border=1><tr>\
-                <th></th>\
-                <th></th>\
-                <th><b><font size=-1>Rótulo/Grupo</font></b></th>\
-                <th><b><font size=-1>Bolsa CNPq</font></b></th>\
-                <th><b><font size=-1>Período de<br>análise individual</font></b></th>\
-                <th><b><font size=-1>Data de<br>atualização do CV</font><b></th>\
-                <th><b><font size=-1>Grande área</font><b></th>\
-                <th><b><font size=-1>Área</font><b></th>\
-                <th><b><font size=-1>lat</font><b></th>\
-                <th><b><font size=-1>lon</font><b></th>\
-        <th><b><font size=-1>Produção<br>bibliográfica</font><b></th>\
-        <th><b><font size=-1>Periódicos</font><b></th>\
-        <th><b><font size=-1>Livros</font><b></th>\
-        <th><b><font size=-1>Capítulos</font><b></th>\
-        <th><b><font size=-1>Congressos</font><b></th>\
-        <th><b><font size=-1>Resumos</font><b></th>\
-        <th><b><font size=-1>Aceitos</font><b></th>\
-        <th><b><font size=-1>Produção<br>técnica</font><b></th>\
-        <th><b><font size=-1>Produção<br>artística</font><b></th>\
-        </tr>'
-
-        elemento = 0
+    
+        # Includes + ellipsis CSS
+        s += """
+    <link href="css/tabulator_site.min.css" rel="stylesheet" />
+    <link href="css/tabulator-scriplattes.css" rel="stylesheet" />
+    <script src="js/tabulator.min.js"></script>
+    <script src="js/xlsx.full.min.js"></script>
+    
+    <style>
+    /* Ellipsis nas três tabelas */
+    #tabela-producao .tabulator-cell,
+    #tabela-orientacoes .tabulator-cell,
+    #tabela-projetos .tabulator-cell {
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+    }
+    </style>
+    """
+    
+        # ======== DADOS ========
+        producao, orientacoes, projetos = [], [], []
+    
         for membro in self.grupo.listaDeMembros:
-            elemento += 1
-            bolsa = membro.bolsaProdutividade if membro.bolsaProdutividade else ''
-            rotulo = membro.rotulo if not membro.rotulo == '[Sem rotulo]' else ''
-            rotulo = rotulo
-            nomeCompleto = membro.nomeCompleto  #nicodedata.normalize('NFKD', membro.nomeCompleto).encode('ASCII', 'ignore')
-
-            quantitativo_publicacoes = [len(membro.listaArtigoEmPeriodico),
-                                        len(membro.listaLivroPublicado),
-                                        len(membro.listaCapituloDeLivroPublicado),
-                                        len(membro.listaTrabalhoCompletoEmCongresso),
-                                        len(membro.listaResumoEmCongresso) + len(membro.listaResumoExpandidoEmCongresso),
-                                        len(membro.listaArtigoAceito) ]
-
-            quantitativo_tecnica     = [len(membro.listaSoftwareComPatente),
-                                        len(membro.listaSoftwareSemPatente),
-                                        len(membro.listaProdutoTecnologico),
-                                        len(membro.listaProcessoOuTecnica),
-                                        len(membro.listaTrabalhoTecnico),
-                                        len(membro.listaOutroTipoDeProducaoTecnica) ]
-
-            quantitativo_artistica   = [len(membro.listaProducaoArtistica)]
-
-
-            s += '\n<tr class="testetabela"> \
-                     <td valign="center">{0}.</td> \
-                     <td><a href="membro-{1}.html"> {2}</a></td> \
-                     <td><font size=-2>{3}</font></td> \
-                     <td><font size=-2>{4}</font></td> \
-                     <td><font size=-2>{5}</font></td> \
-                     <td><font size=-2>{6}</font></td> \
-                     <td><font size=-2>{7}</font></td> \
-                     <td><font size=-2>{8}</font></td> \
-                     <td><font size=-2>{9}</font></td> \
-                     <td><font size=-2>{10}</font></td> \
-                     <td align="right"><font size=-2>{11}</font></td> \
-                     <td align="right"><font size=-2>{12}</font></td> \
-                     <td align="right"><font size=-2>{13}</font></td> \
-                     <td align="right"><font size=-2>{14}</font></td> \
-                     <td align="right"><font size=-2>{15}</font></td> \
-                     <td align="right"><font size=-2>{16}</font></td> \
-                     <td align="right"><font size=-2>{17}</font></td> \
-                     <td align="right"><font size=-2>{18}</font></td> \
-                     <td align="right"><font size=-2>{19}</font></td> \
-                     </tr>'.format(str(elemento),
-                               membro.idLattes,
-                               nomeCompleto,
-                                 rotulo,
-                                 bolsa,
-                                 membro.periodo,
-                                 membro.atualizacaoCV,
-                                 membro.nomePrimeiraGrandeArea,
-                                 membro.nomePrimeiraArea,
-                                 membro.enderecoProfissionalLat,
-                                 membro.enderecoProfissionalLon,
-                               sum(quantitativo_publicacoes),
-                               quantitativo_publicacoes[0],
-                               quantitativo_publicacoes[1],
-                               quantitativo_publicacoes[2],
-                               quantitativo_publicacoes[3],
-                               quantitativo_publicacoes[4],
-                               quantitativo_publicacoes[5],
-                               sum(quantitativo_tecnica),
-                               sum(quantitativo_artistica)  )
-
-        s += '\n</table>'
-
-        s += '\n<h3>Métricas: Orientações concluídas e em andamento</h3> <table id="metricas" class="sortable" border=1><tr>\
-                        <th></th>\
-                        <th></th>\
-                        <th><b><font size=-1>Rótulo/Grupo</font></b></th>\
-                        <th><b><font size=-1>Bolsa CNPq</font></b></th>\
-                        <th><b><font size=-1>Período de<br>análise individual</font></b></th>\
-                        <th><b><font size=-1>Data de<br>atualização do CV</font><b></th>\
-                        <th><b><font size=-1>Grande área</font><b></th>\
-                        <th><b><font size=-1>Área</font><b></th>\
-        <th><b><font size=-1>Orientações<br>concluídas</font><b></th>\
-        <th><b><font size=-1>Posdoc</font><b></th>\
-        <th><b><font size=-1>Doutorado</font><b></th>\
-        <th><b><font size=-1>Mestrado</font><b></th>\
-        <th><b><font size=-1>Especialização</font><b></th>\
-        <th><b><font size=-1>TCC</font><b></th>\
-        <th><b><font size=-1>IC</font><b></th>\
-        <th><b><font size=-1>Orientações<br>em andamento</font><b></th>\
-        <th><b><font size=-1>Posdoc</font><b></th>\
-        <th><b><font size=-1>Doutorado</font><b></th>\
-        <th><b><font size=-1>Mestrado</font><b></th>\
-        <th><b><font size=-1>Especialização</font><b></th>\
-        <th><b><font size=-1>TCC</font><b></th>\
-        <th><b><font size=-1>IC</font><b></th>\
-        </tr>'
-
-        elemento = 0
+            bolsa  = membro.bolsaProdutividade if membro.bolsaProdutividade else ''
+            rotulo = _s(membro.rotulo)
+            nome   = _s(membro.nomeCompleto)
+            atual_str, atual_num = _date_ddmmyyyy_only(getattr(membro, "atualizacaoCV", ""))
+    
+            qtd_pub_periodicos = _len(getattr(membro, "listaArtigoEmPeriodico", []))
+            qtd_pub_livros     = _len(getattr(membro, "listaLivroPublicado", []))
+            qtd_pub_capit      = _len(getattr(membro, "listaCapituloDeLivroPublicado", []))
+            qtd_pub_congr      = _len(getattr(membro, "listaTrabalhoCompletoEmCongresso", []))
+            qtd_pub_resumos    = _len(getattr(membro, "listaResumoEmCongresso", [])) + _len(getattr(membro, "listaResumoExpandidoEmCongresso", []))
+            qtd_pub_aceitos    = _len(getattr(membro, "listaArtigoAceito", []))
+    
+            qtd_tec_soft_pat   = _len(getattr(membro, "listaSoftwareComPatente", []))
+            qtd_tec_soft_sem   = _len(getattr(membro, "listaSoftwareSemPatente", []))
+            qtd_tec_prod       = _len(getattr(membro, "listaProdutoTecnologico", []))
+            qtd_tec_proc       = _len(getattr(membro, "listaProcessoOuTecnica", []))
+            qtd_tec_trab       = _len(getattr(membro, "listaTrabalhoTecnico", []))
+            qtd_tec_outros     = _len(getattr(membro, "listaOutroTipoDeProducaoTecnica", []))
+    
+            qtd_artistica      = _len(getattr(membro, "listaProducaoArtistica", []))
+    
+            pb_total  = (qtd_pub_periodicos + qtd_pub_livros + qtd_pub_capit +
+                         qtd_pub_congr + qtd_pub_resumos + qtd_pub_aceitos)
+            tec_total = (qtd_tec_soft_pat + qtd_tec_soft_sem + qtd_tec_prod +
+                         qtd_tec_proc + qtd_tec_trab + qtd_tec_outros)
+            art_total = qtd_artistica
+    
+            producao.append({
+                "nome": nome,
+                "url": f"membro-{_s(getattr(membro, 'idLattes', ''))}.html",
+                "rotulo": rotulo,
+                "bolsa": _s(bolsa),
+                "periodo": _s(getattr(membro, "periodo", "")),
+                "atualizacao": atual_str,
+                "atualizacao_num": _int(atual_num),
+                "grande_area": _s(getattr(membro, "nomePrimeiraGrandeArea", "")),
+                "area": _s(getattr(membro, "nomePrimeiraArea", "")),
+    
+                "pb_total": _int(pb_total),
+                "periodicos": _int(qtd_pub_periodicos),
+                "livros": _int(qtd_pub_livros),
+                "capitulos": _int(qtd_pub_capit),
+                "congressos": _int(qtd_pub_congr),
+                "resumos": _int(qtd_pub_resumos),
+                "aceitos": _int(qtd_pub_aceitos),
+    
+                "tec_total": _int(tec_total),
+                "art_total": _int(art_total),
+            })
+    
         for membro in self.grupo.listaDeMembros:
-            elemento += 1
-            bolsa = membro.bolsaProdutividade if membro.bolsaProdutividade else ''
-            rotulo = membro.rotulo if not membro.rotulo == '[Sem rotulo]' else ''
-            rotulo = rotulo
-            nomeCompleto = membro.nomeCompleto  #unicodedata.normalize('NFKD', membro.nomeCompleto).encode('ASCII', 'ignore')
-
-            quantitativo_orientacoes_concluidas = [len(membro.listaOCSupervisaoDePosDoutorado),
-                                                   len(membro.listaOCTeseDeDoutorado),
-                                                   len(membro.listaOCDissertacaoDeMestrado),
-                                                   len(membro.listaOCMonografiaDeEspecializacao),
-                                                   len(membro.listaOCTCC),
-                                                   len(membro.listaOCIniciacaoCientifica)]
-
-            quantitativo_orientacoes_andamento = [len(membro.listaOASupervisaoDePosDoutorado),
-                                                  len(membro.listaOATeseDeDoutorado),
-                                                  len(membro.listaOADissertacaoDeMestrado),
-                                                  len(membro.listaOAMonografiaDeEspecializacao),
-                                                  len(membro.listaOATCC),
-                                                  len(membro.listaOAIniciacaoCientifica)]
-
-            s += '\n<tr class="testetabela"> \
-                      <td valign="center">{0}.</td> \
-                      <td><a href="membro-{1}.html"> {2}</a></td> \
-                      <td><font size=-2>{3}</font></td> \
-                      <td><font size=-2>{4}</font></td> \
-                      <td><font size=-2>{5}</font></td> \
-                      <td><font size=-2>{6}</font></td> \
-                      <td><font size=-2>{7}</font></td> \
-                      <td><font size=-2>{8}</font></td> \
-                      <td><font size=-2>{9}</font></td> \
-                      <td><font size=-2>{10}</font></td> \
-                      <td align="right"><font size=-2>{11}</font></td> \
-                      <td align="right"><font size=-2>{12}</font></td> \
-                      <td align="right"><font size=-2>{13}</font></td> \
-                      <td align="right"><font size=-2>{14}</font></td> \
-                      <td align="right"><font size=-2>{15}</font></td> \
-                      <td align="right"><font size=-2>{16}</font></td> \
-                      <td align="right"><font size=-2>{17}</font></td> \
-                      <td align="right"><font size=-2>{18}</font></td> \
-                      <td align="right"><font size=-2>{19}</font></td> \
-                      <td align="right"><font size=-2>{20}</font></td> \
-                      <td align="right"><font size=-2>{21}</font></td> \
-                      <td align="right"><font size=-2>{22}</font></td> \
-                      </tr>'.format(str(elemento),
-                                    membro.idLattes,
-                                    nomeCompleto,
-                                    rotulo,
-                                    bolsa,
-                                    membro.periodo,
-                                    membro.atualizacaoCV,
-                                    membro.nomePrimeiraGrandeArea,
-                                    membro.nomePrimeiraArea,
-                                    sum(quantitativo_orientacoes_concluidas),
-                                    quantitativo_orientacoes_concluidas[0],
-                                    quantitativo_orientacoes_concluidas[1],
-                                    quantitativo_orientacoes_concluidas[2],
-                                    quantitativo_orientacoes_concluidas[3],
-                                    quantitativo_orientacoes_concluidas[4],
-                                    quantitativo_orientacoes_concluidas[5],
-                                    sum(quantitativo_orientacoes_andamento),
-                                    quantitativo_orientacoes_andamento[0],
-                                    quantitativo_orientacoes_andamento[1],
-                                    quantitativo_orientacoes_andamento[2],
-                                    quantitativo_orientacoes_andamento[3],
-                                    quantitativo_orientacoes_andamento[4],
-                                    quantitativo_orientacoes_andamento[5],
-                                    )
-
-        s += '\n</table>'
-
-
-        s += '\n<h3>Métricas: Projetos, prêmios e eventos</h3> <table id="metricas" class="sortable" border=1><tr>\
-                        <th></th>\
-                        <th></th>\
-                        <th><b><font size=-1>Rótulo/Grupo</font></b></th>\
-                        <th><b><font size=-1>Bolsa CNPq</font></b></th>\
-                        <th><b><font size=-1>Período de<br>análise individual</font></b></th>\
-                        <th><b><font size=-1>Data de<br>atualização do CV</font><b></th>\
-                        <th><b><font size=-1>Grande área</font><b></th>\
-                        <th><b><font size=-1>Área</font><b></th>\
-        <th><b><font size=-1>Projetos</font><b></th>\
-        <th><b><font size=-1>Prêmios</font><b></th>\
-        <th><b><font size=-1>Participação em eventos</font><b></th>\
-        <th><b><font size=-1>Organização de eventos</font><b></th>\
-        </tr>'
-
-        elemento = 0
+            bolsa  = membro.bolsaProdutividade if membro.bolsaProdutividade else ''
+            rotulo = _s(membro.rotulo)
+            nome   = _s(membro.nomeCompleto)
+            atual_str, atual_num = _date_ddmmyyyy_only(getattr(membro, "atualizacaoCV", ""))
+    
+            concl_posdoc = _len(getattr(membro, "listaOCSupervisaoDePosDoutorado", []))
+            concl_dout   = _len(getattr(membro, "listaOCTeseDeDoutorado", []))
+            concl_mest   = _len(getattr(membro, "listaOCDissertacaoDeMestrado", []))
+            concl_espec  = _len(getattr(membro, "listaOCMonografiaDeEspecializacao", []))
+            concl_tcc    = _len(getattr(membro, "listaOCTCC", []))
+            concl_ic     = _len(getattr(membro, "listaOCIniciacaoCientifica", []))
+            concl_total  = concl_posdoc + concl_dout + concl_mest + concl_espec + concl_tcc + concl_ic
+    
+            and_posdoc   = _len(getattr(membro, "listaOASupervisaoDePosDoutorado", []))
+            and_dout     = _len(getattr(membro, "listaOATeseDeDoutorado", []))
+            and_mest     = _len(getattr(membro, "listaOADissertacaoDeMestrado", []))
+            and_espec    = _len(getattr(membro, "listaOAMonografiaDeEspecializacao", []))
+            and_tcc      = _len(getattr(membro, "listaOATCC", []))
+            and_ic       = _len(getattr(membro, "listaOAIniciacaoCientifica", []))
+            and_total    = and_posdoc + and_dout + and_mest + and_espec + and_tcc + and_ic
+    
+            orientacoes.append({
+                "nome": nome,
+                "url": f"membro-{_s(getattr(membro, 'idLattes', ''))}.html",
+                "rotulo": rotulo,
+                "bolsa": _s(bolsa),
+                "periodo": _s(getattr(membro, "periodo", "")),
+                "atualizacao": atual_str,
+                "atualizacao_num": _int(atual_num),
+                "grande_area": _s(getattr(membro, "nomePrimeiraGrandeArea", "")),
+                "area": _s(getattr(membro, "nomePrimeiraArea", "")),
+    
+                "concl_total": _int(concl_total),
+                "concl_posdoc": _int(concl_posdoc),
+                "concl_dout": _int(concl_dout),
+                "concl_mest": _int(concl_mest),
+                "concl_espec": _int(concl_espec),
+                "concl_tcc": _int(concl_tcc),
+                "concl_ic": _int(concl_ic),
+    
+                "and_total": _int(and_total),
+                "and_posdoc": _int(and_posdoc),
+                "and_dout": _int(and_dout),
+                "and_mest": _int(and_mest),
+                "and_espec": _int(and_espec),
+                "and_tcc": _int(and_tcc),
+                "and_ic": _int(and_ic),
+            })
+    
         for membro in self.grupo.listaDeMembros:
-            elemento += 1
-            bolsa = membro.bolsaProdutividade if membro.bolsaProdutividade else ''
-            rotulo = membro.rotulo if not membro.rotulo == '[Sem rotulo]' else ''
-            rotulo = rotulo
-            nomeCompleto = membro.nomeCompleto #unicodedata.normalize('NFKD', membro.nomeCompleto).encode('ASCII', 'ignore')
-
-            s += '\n<tr class="testetabela"> \
-                      <td valign="center">{0}.</td> \
-                      <td><a href="membro-{1}.html"> {2}</a></td> \
-                      <td><font size=-2>{3}</font></td> \
-                      <td><font size=-2>{4}</font></td> \
-                      <td><font size=-2>{5}</font></td> \
-                      <td><font size=-2>{6}</font></td> \
-                      <td><font size=-2>{7}</font></td> \
-                      <td><font size=-2>{8}</font></td> \
-                      <td><font size=-2>{9}</font></td> \
-                      <td><font size=-2>{10}</font></td> \
-                      <td align="right"><font size=-2>{11}</font></td> \
-                      <td align="right"><font size=-2>{12}</font></td> \
-                      </tr>'.format(str(elemento),
-                                    membro.idLattes,
-                                    nomeCompleto,
-                                    rotulo,
-                                    bolsa,
-                                    membro.periodo,
-                                    membro.atualizacaoCV,
-                                    membro.nomePrimeiraGrandeArea,
-                                    membro.nomePrimeiraArea,
-                                    len(membro.listaProjetoDePesquisa),
-                                    len(membro.listaPremioOuTitulo),
-                                    len(membro.listaParticipacaoEmEvento),
-                                    len(membro.listaOrganizacaoDeEvento)
-                                    )
-
-        s += '\n</table>'
-
-        if self.grupo.obterParametro('grafo-mostrar_grafo_de_colaboracoes'):
-            s += '\n<h3>Métricas: Coautoria</h3> <table id="metricas" class="sortable" border=1><tr>\
-                            <th></th>\
-                            <th></th>\
-                            <th><b><font size=-1>Rótulo/Grupo</font></b></th>\
-                            <th><b><font size=-1>Bolsa CNPq</font></b></th>\
-                            <th><b><font size=-1>Período de<br>análise individual</font></b></th>\
-                            <th><b><font size=-1>Data de<br>atualização do CV</font><b></th>\
-                            <th><b><font size=-1>Grande área</font><b></th>\
-                            <th><b><font size=-1>Área</font><b></th>\
-            <th><b><font size=-1>IDs Lattes identificados</font><b></th>\
-            <th><b><font size=-1>Número de coautores - endôgeno</font><b></th>\
-            <th><b><font size=-1>Número de coautores - Publicações bibliográficas</font><b></th>\
-            </tr>'
-
-            elemento = 0
-            for membro in self.grupo.listaDeMembros:
-                elemento += 1
-                bolsa = membro.bolsaProdutividade if membro.bolsaProdutividade else ''
-                rotulo = membro.rotulo if not membro.rotulo == '[Sem rotulo]' else ''
-                rotulo = rotulo
-                nomeCompleto = membro.nomeCompleto #unicodedata.normalize('NFKD', membro.nomeCompleto).encode('ASCII', 'ignore')
-
-                coautores_do_membro = list([])
-                alias_do_membro = membro.nomeEmCitacoesBibliograficas.upper().replace(".","").split(";")
-                for i in range(0,len(alias_do_membro)):
-                    alias_do_membro[i] = alias_do_membro[i].strip()
-
-                for tipo_de_publicacao in [membro.listaArtigoEmPeriodico,
-                                           membro.listaLivroPublicado,
-                                           membro.listaCapituloDeLivroPublicado,
-                                           membro.listaTrabalhoCompletoEmCongresso,
-                                           membro.listaResumoEmCongresso,
-                                           membro.listaResumoExpandidoEmCongresso,
-                                           membro.listaArtigoAceito]:
-                    for pub in tipo_de_publicacao:
-
-                        for coautor in pub.autores.upper().replace(".","").split(";"):
-                            coautor = coautor.strip()
-                            if not coautor in alias_do_membro:
-                                coautores_do_membro.append(coautor)
-
-                    '''quantitativo_tecnica = [len(membro.listaSoftwareComPatente),
-                                            len(membro.listaSoftwareSemPatente),
-                                            len(membro.listaProdutoTecnologico),
-                                            len(membro.listaProcessoOuTecnica),
-                                            len(membro.listaTrabalhoTecnico),
-                                            len(membro.listaOutroTipoDeProducaoTecnica)]
-
-                    quantitativo_artistica = [len(membro.listaProducaoArtistica)]
-                    '''
-
-
-                s += '\n<tr class="testetabela"> \
-                          <td valign="center">{0}.</td> \
-                          <td><a href="membro-{1}.html"> {2}</a></td> \
-                          <td><font size=-2>{3}</font></td> \
-                          <td><font size=-2>{4}</font></td> \
-                          <td><font size=-2>{5}</font></td> \
-                          <td><font size=-2>{6}</font></td> \
-                          <td><font size=-2>{7}</font></td> \
-                          <td><font size=-2>{8}</font></td> \
-                          <td><font size=-2>{9}</font></td> \
-                          <td><font size=-2>{10}</font></td> \
-                          <td align="right"><font size=-2>{11}</font></td> \
-                          </tr>'.format(str(elemento),
-                                        membro.idLattes,
-                                        nomeCompleto,
-                                        rotulo,
-                                        bolsa,
-                                        membro.periodo,
-                                        membro.atualizacaoCV,
-                                        membro.nomePrimeiraGrandeArea,
-                                        membro.nomePrimeiraArea,
-                                        len(membro.listaIDLattesColaboradoresUnica),
-                                        len(self.grupo.colaboradores_endogenos[membro.idMembro]),
-                                        len(set(coautores_do_membro))
-                                        )
-
-            s += '\n</table>'
-
-
-        # add jquery and plugins
-        # s += '<script src="../../js/jexpand/jExpand.js"></script>' \
-        #      '<script>' \
-        #      '  $(document).ready(function(){' \
-        #      '    $(".collapse-box").jExpand();' \
-        #      '  });' \
-        #      '</script>'
-
-        s += '<script>' \
-             '  $(document).ready( function () {' \
-             '    $(\'#membros\').DataTable();' \
-             '  });' \
-             '</script>'
-
-        # $(".ano_esquerda").live("click", function(e){\
-        #     var anoAtual = parseInt($(this).attr("rel"));\
-        #     var contador = $(this).attr("rev");\
-        #     if(anoAtual > ' + str(anoInicio) + '){\
-        #         $("#ano_"+anoAtual+"_"+contador).css("display", "none");\
-        #         $("#ano_"+(anoAtual-1)+"_"+contador).css("display", "block");\
-        #     }\
-        # });\
-        # $(".ano_direita").live("click", function(e){\
-        #     var anoAtual = parseInt($(this).attr("rel"));\
-        #     var contador = $(this).attr("rev");\
-        #     if(anoAtual < ' + str(anoFim) + '){\
-        #         $("#ano_"+anoAtual+"_"+contador).css("display", "none");\
-        #         $("#ano_"+(anoAtual+1)+"_"+contador).css("display", "block");\
-        #     }\
-        # });\
-
+            bolsa  = membro.bolsaProdutividade if membro.bolsaProdutividade else ''
+            rotulo = _s(membro.rotulo)
+            nome   = _s(membro.nomeCompleto)
+            atual_str, atual_num = _date_ddmmyyyy_only(getattr(membro, "atualizacaoCV", ""))
+    
+            projetos.append({
+                "nome": nome,
+                "url": f"membro-{_s(getattr(membro, 'idLattes', ''))}.html",
+                "rotulo": rotulo,
+                "bolsa": _s(bolsa),
+                "periodo": _s(getattr(membro, "periodo", "")),
+                "atualizacao": atual_str,
+                "atualizacao_num": _int(atual_num),
+                "grande_area": _s(getattr(membro, "nomePrimeiraGrandeArea", "")),
+                "area": _s(getattr(membro, "nomePrimeiraArea", "")),
+    
+                "projetos":   _len(getattr(membro, "listaProjetoDePesquisa", [])),
+                "premios":    _len(getattr(membro, "listaPremioOuTitulo", [])),
+                "part_event": _len(getattr(membro, "listaParticipacaoEmEvento", [])),
+                "org_event":  _len(getattr(membro, "listaOrganizacaoDeEvento", [])),
+            })
+    
+        dados_js = {
+            "producao":    producao,
+            "orientacoes": orientacoes,
+            "projetos":    projetos,
+        }
+    
+        # ======== HTML + botões ========
+        s += """
+    <h3>Métricas: Produções bibliográficas, técnicas e artísticas</h3>
+    <div class="sl-controls">
+      <button id="prod-csv">⬇️ CSV</button>
+      <button id="prod-xlsx">⬇️ XLSX</button>
+    </div>
+    <div id="tabela-producao" class="sl-tabela"></div>
+    
+    <h3>Métricas: Orientações concluídas e em andamento</h3>
+    <div class="sl-controls">
+      <button id="ori-csv">⬇️ CSV</button>
+      <button id="ori-xlsx">⬇️ XLSX</button>
+    </div>
+    <div id="tabela-orientacoes" class="sl-tabela"></div>
+    
+    <h3>Métricas: Projetos, prêmios e eventos</h3>
+    <div class="sl-controls">
+      <button id="proj-csv">⬇️ CSV</button>
+      <button id="proj-xlsx">⬇️ XLSX</button>
+    </div>
+    <div id="tabela-projetos" class="sl-tabela"></div>
+    """
+    
+        # ======== SCRIPT (sem f-string para evitar { } escapados) ========
+        script = (
+            "<script>\n"
+            "const DATA = " + json.dumps(dados_js, ensure_ascii=False) + ";\n"
+            "const TABLE_HEIGHT = \"" + table_height + "\";\n"
+            "const LANG_PT = {\n"
+            "  \"pt-br\": {\n"
+            "    \"pagination\": {\n"
+            "      \"first\":\"«\",\"first_title\":\"Primeira\",\n"
+            "      \"last\":\"»\",\"last_title\":\"Última\",\n"
+            "      \"prev\":\"‹\",\"prev_title\":\"Anterior\",\n"
+            "      \"next\":\"›\",\"next_title\":\"Próxima\"\n"
+            "    },\n"
+            "    \"headerFilters\": { \"default\":\"⎯ Filtrar ⎯\" }\n"
+            "  }\n"
+            "};\n"
+            "\n"
+            "// Ordenação por data BR via campo auxiliar yyyymmdd\n"
+            "function sortDateBR(a, b, aRow, bRow, column, dir, sorterParams) {\n"
+            "  const av = aRow?.getData()?.atualizacao_num ?? 0;\n"
+            "  const bv = bRow?.getData()?.atualizacao_num ?? 0;\n"
+            "  return av - bv;\n"
+            "}\n"
+            "\n"
+            "// Link com title (tooltip no <a>)\n"
+            "function linkWithTitle(cell) {\n"
+            "  const data = cell.getData();\n"
+            "  const url = data && data.url ? String(data.url) : '#';\n"
+            "  const label = String(cell.getValue() ?? '');\n"
+            "  const a = document.createElement('a');\n"
+            "  a.href = url; a.textContent = label; a.target = '_blank'; a.rel = 'noopener'; a.title = label;\n"
+            "  return a;\n"
+            "}\n"
+            "\n"
+            "function createTable(el, data, columns, initialSort) {\n"
+            "  const base = {\n"
+            "    data,\n"
+            "    layout: 'fitColumns',\n"
+            "    responsiveLayout: 'collapse',\n"
+            "    pagination: 'local',\n"
+            "    paginationSize: 50,\n"
+            "    paginationSizeSelector: [10, 25, 50, 100, 200, 500],\n"
+            "    movableColumns: true,\n"
+            "    initialSort,\n"
+            "    headerFilterLiveFilter: true,\n"
+            "    columns,\n"
+            "    locale: true, langs: LANG_PT, locale: 'pt-br',\n"
+            "    tooltips: true\n"
+            "  };\n"
+            "  if (TABLE_HEIGHT !== 'auto') base.height = TABLE_HEIGHT;\n"
+            "  return new Tabulator(el, base);\n"
+            "}\n"
+            "\n"
+            "function mkTabelaProducao() {\n"
+            "  const columns = [\n"
+            "    { title:'Nome', field:'nome', formatter: linkWithTitle, headerFilter:'input', widthGrow:3, tooltip:true },\n"
+            "    { title:'Rótulo', field:'rotulo', headerFilter:'input', tooltip:true },\n"
+            "    { title:'Bolsa CNPq', field:'bolsa', headerFilter:'input', tooltip:true },\n"
+            "    { title:'Período', field:'periodo', headerFilter:'input', tooltip:true },\n"
+            "    { title:'Atualização CV', field:'atualizacao', headerFilter:'input', sorter: sortDateBR, tooltip:true },\n"
+            "    { title:'Grande área', field:'grande_area', headerFilter:'input', tooltip:true },\n"
+            "    { title:'Área', field:'area', headerFilter:'input', tooltip:true },\n"
+            "    { title:'PB (total)', field:'pb_total', hozAlign:'right', headerFilter:'input', sorter:'number', tooltip:true },\n"
+            "    { title:'Periódicos', field:'periodicos', hozAlign:'right', headerFilter:'input', sorter:'number', tooltip:true },\n"
+            "    { title:'Livros', field:'livros', hozAlign:'right', headerFilter:'input', sorter:'number', tooltip:true },\n"
+            "    { title:'Capítulos', field:'capitulos', hozAlign:'right', headerFilter:'input', sorter:'number', tooltip:true },\n"
+            "    { title:'Congressos', field:'congressos', hozAlign:'right', headerFilter:'input', sorter:'number', tooltip:true },\n"
+            "    { title:'Resumos', field:'resumos', hozAlign:'right', headerFilter:'input', sorter:'number', tooltip:true },\n"
+            "    { title:'Aceitos', field:'aceitos', hozAlign:'right', headerFilter:'input', sorter:'number', tooltip:true },\n"
+            "    { title:'Técnica (total)', field:'tec_total', hozAlign:'right', headerFilter:'input', sorter:'number', tooltip:true },\n"
+            "    { title:'Artística (total)', field:'art_total', hozAlign:'right', headerFilter:'input', sorter:'number', tooltip:true }\n"
+            "  ];\n"
+            "  const t = createTable('#tabela-producao', DATA.producao, columns, [{ column: 'pb_total', dir: 'desc' }]);\n"
+            "  document.getElementById('prod-csv').onclick  = () => t.download('csv',  'metricas_producao.csv', { bom:true });\n"
+            "  document.getElementById('prod-xlsx').onclick = () => t.download('xlsx', 'metricas_producao.xlsx', { sheetName:'Produção' });\n"
+            "  return t;\n"
+            "}\n"
+            "\n"
+            "function mkTabelaOrientacoes() {\n"
+            "  const columns = [\n"
+            "    { title:'Nome', field:'nome', formatter: linkWithTitle, headerFilter:'input', widthGrow:3, tooltip:true },\n"
+            "    { title:'Rótulo', field:'rotulo', headerFilter:'input', tooltip:true },\n"
+            "    { title:'Bolsa CNPq', field:'bolsa', headerFilter:'input', tooltip:true },\n"
+            "    { title:'Período', field:'periodo', headerFilter:'input', tooltip:true },\n"
+            "    { title:'Atualização CV', field:'atualizacao', headerFilter:'input', sorter: sortDateBR, tooltip:true },\n"
+            "    { title:'Grande área', field:'grande_area', headerFilter:'input', tooltip:true },\n"
+            "    { title:'Área', field:'area', headerFilter:'input', tooltip:true },\n"
+            "    { title:'Concluídas (total)', field:'concl_total', hozAlign:'right', headerFilter:'input', sorter:'number', tooltip:true },\n"
+            "    { title:'Pós-doc', field:'concl_posdoc', hozAlign:'right', headerFilter:'input', sorter:'number', tooltip:true },\n"
+            "    { title:'Doutorado', field:'concl_dout', hozAlign:'right', headerFilter:'input', sorter:'number', tooltip:true },\n"
+            "    { title:'Mestrado', field:'concl_mest', hozAlign:'right', headerFilter:'input', sorter:'number', tooltip:true },\n"
+            "    { title:'Especialização', field:'concl_espec', hozAlign:'right', headerFilter:'input', sorter:'number', tooltip:true },\n"
+            "    { title:'TCC', field:'concl_tcc', hozAlign:'right', headerFilter:'input', sorter:'number', tooltip:true },\n"
+            "    { title:'IC', field:'concl_ic', hozAlign:'right', headerFilter:'input', sorter:'number', tooltip:true },\n"
+            "    { title:'Em andamento (total)', field:'and_total', hozAlign:'right', headerFilter:'input', sorter:'number', tooltip:true },\n"
+            "    { title:'Pós-doc', field:'and_posdoc', hozAlign:'right', headerFilter:'input', sorter:'number', tooltip:true },\n"
+            "    { title:'Doutorado', field:'and_dout', hozAlign:'right', headerFilter:'input', sorter:'number', tooltip:true },\n"
+            "    { title:'Mestrado', field:'and_mest', hozAlign:'right', headerFilter:'input', sorter:'number', tooltip:true },\n"
+            "    { title:'Especialização', field:'and_espec', hozAlign:'right', headerFilter:'input', sorter:'number', tooltip:true },\n"
+            "    { title:'TCC', field:'and_tcc', hozAlign:'right', headerFilter:'input', sorter:'number', tooltip:true },\n"
+            "    { title:'IC', field:'and_ic', hozAlign:'right', headerFilter:'input', sorter:'number', tooltip:true }\n"
+            "  ];\n"
+            "  const t = createTable('#tabela-orientacoes', DATA.orientacoes, columns, [{ column: 'concl_total', dir: 'desc' }]);\n"
+            "  document.getElementById('ori-csv').onclick  = () => t.download('csv',  'metricas_orientacoes.csv', { bom:true });\n"
+            "  document.getElementById('ori-xlsx').onclick = () => t.download('xlsx', 'metricas_orientacoes.xlsx', { sheetName:'Orientações' });\n"
+            "  return t;\n"
+            "}\n"
+            "\n"
+            "function mkTabelaProjetos() {\n"
+            "  const columns = [\n"
+            "    { title:'Nome', field:'nome', formatter: linkWithTitle, headerFilter:'input', widthGrow:3, tooltip:true },\n"
+            "    { title:'Rótulo', field:'rotulo', headerFilter:'input', tooltip:true },\n"
+            "    { title:'Bolsa CNPq', field:'bolsa', headerFilter:'input', tooltip:true },\n"
+            "    { title:'Período', field:'periodo', headerFilter:'input', tooltip:true },\n"
+            "    { title:'Atualização CV', field:'atualizacao', headerFilter:'input', sorter: sortDateBR, tooltip:true },\n"
+            "    { title:'Grande área', field:'grande_area', headerFilter:'input', tooltip:true },\n"
+            "    { title:'Área', field:'area', headerFilter:'input', tooltip:true },\n"
+            "    { title:'Projetos', field:'projetos', hozAlign:'right', headerFilter:'input', sorter:'number', tooltip:true },\n"
+            "    { title:'Prêmios', field:'premios', hozAlign:'right', headerFilter:'input', sorter:'number', tooltip:true },\n"
+            "    { title:'Participação em eventos', field:'part_event', hozAlign:'right', headerFilter:'input', sorter:'number', tooltip:true },\n"
+            "    { title:'Organização de eventos', field:'org_event', hozAlign:'right', headerFilter:'input', sorter:'number', tooltip:true }\n"
+            "  ];\n"
+            "  const t = createTable('#tabela-projetos', DATA.projetos, columns, [{ column: 'projetos', dir: 'desc' }]);\n"
+            "  document.getElementById('proj-csv').onclick  = () => t.download('csv',  'metricas_projetos.csv', { bom:true });\n"
+            "  document.getElementById('proj-xlsx').onclick = () => t.download('xlsx', 'metricas_projetos.xlsx', { sheetName:'Projetos' });\n"
+            "  return t;\n"
+            "}\n"
+            "\n"
+            "document.addEventListener('DOMContentLoaded', function(){\n"
+            "  mkTabelaProducao();\n"
+            "  mkTabelaOrientacoes();\n"
+            "  mkTabelaProjetos();\n"
+            "});\n"
+            "</script>\n"
+        )
+    
+        s += script
         s += self.paginaBottom()
-
         self.salvarPagina("metricas" + self.extensaoPagina, s)
-
+           
+    
 
     def gerar_pagina_individual_de_membro(self, membro):
         bolsa        = membro.bolsaProdutividade  if membro.bolsaProdutividade else ''
@@ -1502,6 +2153,7 @@ class GeradorDePaginasWeb:
         (nPT3, lista_PT3, titulo_PT3) = self.gerar_lista_de_producoes_de_membro( membro.listaProcessoOuTecnica, "Processos ou técnicas" )
         (nPT4, lista_PT4, titulo_PT4) = self.gerar_lista_de_producoes_de_membro( membro.listaTrabalhoTecnico, "Trabalhos técnicos" )
         (nPT5, lista_PT5, titulo_PT5) = self.gerar_lista_de_producoes_de_membro( membro.listaOutroTipoDeProducaoTecnica, "Demais tipos de produção técnica" )
+        (nPT6, lista_PT6, titulo_PT6) = self.gerar_lista_de_producoes_de_membro( membro.listaEntrevista , "Entrevistas, mesas redondas, programas e comentários na mídia" )
 
         (nPA0, lista_PA0, titulo_PA0) = self.gerar_lista_de_producoes_de_membro( membro.listaProducaoArtistica, "Total de produção artística" )
 
@@ -1526,6 +2178,7 @@ class GeradorDePaginasWeb:
         (nEp0, lista_Ep0, titulo_Ep0) = self.gerar_lista_de_producoes_de_membro( membro.listaParticipacaoEmEvento, "Total de participação em eventos" )
         (nEo0, lista_Eo0, titulo_Eo0) = self.gerar_lista_de_producoes_de_membro( membro.listaOrganizacaoDeEvento, "Total de organização de eventos" )
 
+        #
         if self.grupo.obterParametro('grafo-mostrar_grafo_de_colaboracoes'):
             (nCE, lista_CE, titulo_CE, lista_CE_detalhe)    = self.gerar_lista_de_colaboracoes (membro, 'Colaborações endôgenas')
 
@@ -1548,6 +2201,7 @@ class GeradorDePaginasWeb:
         s += '<li><a href="#{}">{}</a> ({}) </li>'.format( 'PT3', titulo_PT3, nPT3 )
         s += '<li><a href="#{}">{}</a> ({}) </li>'.format( 'PT4', titulo_PT4, nPT4 )
         s += '<li><a href="#{}">{}</a> ({}) </li>'.format( 'PT5', titulo_PT5, nPT5 )
+        s += '<li><a href="#{}">{}</a> ({}) </li>'.format( 'PT6', titulo_PT6, nPT6 )
         s += '</ul>'
         s += '<h3>Produção artística</h3> <ul>'
         s += '<li><a href="#{}">{}</a> ({}) </li>'.format( 'PA0', titulo_PA0, nPA0 )
@@ -1609,6 +2263,7 @@ class GeradorDePaginasWeb:
         s += '<li id="{}"> <b>{}</b> ({}) <br> {} </li>'.format( 'PT3', titulo_PT3, nPT3, lista_PT3)
         s += '<li id="{}"> <b>{}</b> ({}) <br> {} </li>'.format( 'PT4', titulo_PT4, nPT4, lista_PT4)
         s += '<li id="{}"> <b>{}</b> ({}) <br> {} </li>'.format( 'PT5', titulo_PT5, nPT5, lista_PT5)
+        s += '<li id="{}"> <b>{}</b> ({}) <br> {} </li>'.format( 'PT6', titulo_PT6, nPT6, lista_PT6)
         s += '</ul>'
         s += '<h3>Produção artística</h3> <ul>'
         s += '<li id="{}"> <b>{}</b> ({}) <br> {} </li>'.format( 'PA0', titulo_PA0, nPA0, lista_PA0)
@@ -1664,7 +2319,6 @@ class GeradorDePaginasWeb:
     def gerar_lista_de_colaboracoes (self, membro, titulo):
         s = '<ol>'
         detalhe = '<ul>'
-
         colaboradores = self.grupo.colaboradores_endogenos[membro.idMembro]
 
         for (idColaborador, quantidade) in sorted(colaboradores, key=lambda x:(-x[1],x[0])):
@@ -1694,12 +2348,6 @@ class GeradorDePaginasWeb:
                    '<title>{nome_grupo}</title>' \
                    '<link rel="stylesheet" href="css/scriptLattes.css" type="text/css">' \
                    '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap">' \
-                   '<link rel="stylesheet" type="text/css" href="css/jquery.dataTables.css">' \
-                   '<link rel="stylesheet" type="text/css" href="css/dataTables.colVis.min.css">' \
-                   '<script type="text/javascript" charset="utf8" src="js/jquery.min.js"></script>' \
-                   '<script type="text/javascript" charset="utf8" src="js/jquery.dataTables.min.js"></script>' \
-                   '<script type="text/javascript" charset="utf8" src="js/dataTables.colVis.min.js"></script>' \
-				   '<script src="http://professor.ufabc.edu.br/~jesus.mena/sorttable.js"></script>'\
                    '{cabecalho}' \
                    '</head>' \
                    '<body><div id="header2"> <button onClick="history.go(-1)">Voltar</button>' \

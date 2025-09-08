@@ -1,59 +1,18 @@
 #!/usr/bin/env python 
 # encoding: utf-8
-#
-#
-#  scriptLattes
-#  Copyright http://scriptlattes.sourceforge.net/
-#
-#  Este programa é um software livre; você pode redistribui-lo e/ou 
-#  modifica-lo dentro dos termos da Licença Pública Geral GNU como 
-#  publicada pela Fundação do Software Livre (FSF); na versão 2 da 
-#  Licença, ou (na sua opinião) qualquer versão.
-#
-#  Este programa é distribuído na esperança que possa ser util, 
-#  mas SEM NENHUMA GARANTIA; sem uma garantia implicita de ADEQUAÇÂO a qualquer
-#  MERCADO ou APLICAÇÃO EM PARTICULAR. Veja a
-#  Licença Pública Geral GNU para maiores detalhes.
-#
-#  Você deve ter recebido uma cópia da Licença Pública Geral GNU
-#  junto com este programa, se não, escreva para a Fundação do Software
-#  Livre(FSF) Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-#
-#
-#import logging
+
 import os
 import shutil
 import sys
-import Levenshtein
+import re
+import unicodedata
+from rapidfuzz.distance import Levenshtein
+
 
 SEP     = os.path.sep
 BASE    = 'scriptLattes' + SEP
 ABSBASE = os.path.abspath('.') + SEP
 
-
-class OutputStream:
-    def __init__(self, output, encoding):
-        self.encoding = encoding
-        self.output = output
-
-    def write(self, text):
-        try:
-            text = text.decode(self.encoding)
-        except:
-            try:
-                text = text.decode('utf8').encode('iso-8859-1')
-            except:
-                try:
-                    text = text.encode('iso-8859-1')
-                except:
-                    pass
-        try:
-            self.output.write(text)
-        except:
-            try:
-                self.output.write(str(text))
-            except:
-                self.output.write('ERRO na impressao')
 
 
 def buscarArquivo(filepath, arquivoConfiguracao=None):
@@ -84,25 +43,6 @@ def copiarArquivos(dir):
         pass  # provavelmente diretório já existe
         #logging.warning(e)
 
-    # shutil.copy2(os.path.join(base, 'css', 'scriptLattes.css'), dir)
-    # shutil.copy2(os.path.join(base, 'css', 'jquery.dataTables.css'), dir)
-
-    #shutil.copy2(os.path.join(base, 'imagens', 'lattesPoint0.png'), dir)
-    #shutil.copy2(os.path.join(base, 'imagens', 'lattesPoint1.png'), dir)
-    #shutil.copy2(os.path.join(base, 'imagens', 'lattesPoint2.png'), dir)
-    #shutil.copy2(os.path.join(base, 'imagens', 'lattesPoint3.png'), dir)
-    #shutil.copy2(os.path.join(base, 'imagens', 'lattesPoint_shadow.png'), dir)
-    shutil.copy2(os.path.join(base, 'imagens', 'doi.png'), dir)
-
-    try:
-        dst = os.path.join(dir, 'images')
-        if os.path.exists(dst):
-            shutil.rmtree(dst)
-        shutil.copytree(os.path.join(base, 'images'), dst)
-    except OSError as e:
-        pass  # provavelmente diretório já existe
-        #logging.warning(e)
-
     try:
         dst = os.path.join(dir, 'js')
         if os.path.exists(dst):
@@ -111,7 +51,6 @@ def copiarArquivos(dir):
     except OSError as e:
         pass  # provavelmente diretório já existe
         #logging.warning(e)
-
     # shutil.copy2(os.path.join(base, 'js', 'jquery.min.js'), dir)
     # shutil.copy2(os.path.join(base, 'js', 'highcharts.js'), dir)
     # shutil.copy2(os.path.join(base, 'js', 'exporting.js'), dir)
@@ -121,15 +60,12 @@ def copiarArquivos(dir):
 
     print(f"\n[ARQUIVOS SALVOS NO SEGUINTE DIRETÓRIO]\n{format(os.path.abspath(dir))}")
 
-
 # ---------------------------------------------------------------------------- #
 def similaridade_entre_cadeias(str1, str2, qualis=False):
     '''
     Compara duas cadeias de caracteres e retorna a medida de similaridade entre elas, entre 0 e 1, onde 1 significa que as cadeias são idênticas ou uma é contida na outra.
     :param str1:
     :param str2:
-    :param qualis:
-    :return: A medida de similaridade entre as cadeias, de 0 a 1.
     '''
     str1 = str1.strip().lower()
     str2 = str2.strip().lower()
@@ -144,15 +80,12 @@ def similaridade_entre_cadeias(str1, str2, qualis=False):
     if len(str1) >= 50 and len(str2) >= 50 and (str1 in str2 or str2 in str1):
         return 1
 
-    if qualis:
-        dist = Levenshtein.ratio(str1, str2)
-        if len(str1) >= 10 and len(str2) >= 10 and dist >= 0.90:
-            # return 1
-            return dist
+    distancia  = distancia_Levenshtein(str1, str2)
+    ratio = ...
+ 
+    if len(str1) >= 10 and len(str2) >= 10 and (ratio >= 0.93 or distancia <= 5):
+        return 1
 
-    else:
-        if len(str1) >= 10 and len(str2) >= 10 and Levenshtein.distance(str1, str2) <= 5:
-            return 1
     return 0
 
 
@@ -178,4 +111,93 @@ def merge_dols(dol1, dol2):
     # result = dict()
     result.update((k, dol1[k] + dol2[k]) for k in set(dol1).intersection(dol2))
     return result
+
+
+def eliminar_acentuacao(texto: str) -> str:
+    """
+    Remove a acentuação de uma string, mantendo apenas os caracteres base.
+    """
+    nfkd = unicodedata.normalize('NFKD', texto)
+    return ''.join(
+        c for c in nfkd
+        if not unicodedata.combining(c)
+    )
+
+def normalizar_texto(texto: str) -> str:
+    """
+    Normaliza uma string para comparação:
+      1. Remove acentuação.
+      2. Converte para minúsculas.
+      3. Remove tudo que não for letra (a–z) ou dígito (0–9).
+    """
+    # 1) retirar acentos
+    texto_sem_acentos = eliminar_acentuacao(texto)
+    # 2) caixa baixa
+    texto_minusculo = texto_sem_acentos.lower()
+    # 3) remove pontuação, espaços e demais caracteres
+    texto_limpo = re.sub(r'[^a-z0-9]', '', texto_minusculo)
+    return texto_limpo
+
+
+def distancia_levenshtein(a: str, b: str) -> int:
+    """
+    Calcula a distância de Levenshtein entre as cadeias a e b
+    (algoritmo de Wagner–Fischer).
+    Complexidade: O(n·m) em tempo e O(min(n, m)) em espaço.
+    """
+    n, m = len(a), len(b)
+    # garante que n >= m
+    if n < m:
+        return distancia_levenshtein(b, a)
+
+    anterior = list(range(m + 1))
+    for i, ca in enumerate(a, start=1):
+        atual = [i] + [0] * m
+        for j, cb in enumerate(b, start=1):
+            custo_inserir    = anterior[j] + 1
+            custo_deletar    = atual[j - 1] + 1
+            custo_substituir = anterior[j - 1] + (ca != cb)
+            atual[j] = min(custo_inserir, custo_deletar, custo_substituir)
+        anterior = atual
+
+    return anterior[m]
+
+
+def similaridade_entre_cadeias(cadeia1: str, cadeia2: str, qualis: bool = False) -> int:
+    """
+    Retorna 1 se as cadeias são consideradas similares, caso contrário 0.
+    Critérios:
+      - Se uma das cadeias normalizadas for 'apresentacao', 'introducao' ou 'prefacio', retorna 0.
+      - Se ambas tiverem len >= 50 e uma contida na outra, retorna 1.
+      - Caso contrário, calcula distância e ratio:
+         ratio = 1 - (distância / max_len)
+      - Se len(cadeia) >= 10 e (ratio >= 0.93 ou distância <= 5), retorna 1.
+    """
+    # 1) normalização
+    c1 = normalizar_texto(cadeia1)
+    c2 = normalizar_texto(cadeia2)
+
+    # caso especial
+    especiais = {'apresentacao', 'introducao', 'prefacio'}
+    if c1 in especiais or c2 in especiais:
+        return 0
+
+    # cadeias vazias falham
+    if not c1 or not c2:
+        return 0
+
+    # contenção para textos longos: um prefixo de outro
+    if len(c1) >= 50 and len(c2) >= 50 and (c1 in c2 or c2 in c1):
+        return 1
+
+    # cálculo de distância e ratio
+    distancia = Levenshtein.distance(c1, c2)
+    max_len   = max(len(c1), len(c2))
+    ratio     = 1.0 - distancia / max_len if max_len > 0 else 0.0
+
+    # critério final para cadeias longas
+    if len(c1) >= 10 and len(c2) >= 10 and (ratio >= 0.93 or distancia <= 5):
+        return 1
+
+    return 0
 

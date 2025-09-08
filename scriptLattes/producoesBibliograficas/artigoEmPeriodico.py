@@ -1,37 +1,15 @@
 #!/usr/bin/python
 # encoding: utf-8
-#
-#
-# scriptLattes V8
-# Copyright 2005-2013: Jesús P. Mena-Chalco e Roberto M. Cesar-Jr.
-# http://scriptlattes.sourceforge.net/
-#
-#
-# Este programa é um software livre; você pode redistribui-lo e/ou 
-# modifica-lo dentro dos termos da Licença Pública Geral GNU como 
-# publicada pela Fundação do Software Livre (FSF); na versão 2 da 
-# Licença, ou (na sua opinião) qualquer versão.
-#
-# Este programa é distribuído na esperança que possa ser util, 
-# mas SEM NENHUMA GARANTIA; sem uma garantia implicita de ADEQUAÇÂO a qualquer
-# MERCADO ou APLICAÇÃO EM PARTICULAR. Veja a
-# Licença Pública Geral GNU para maiores detalhes.
-#
-# Você deve ter recebido uma cópia da Licença Pública Geral GNU
-# junto com este programa, se não, escreva para a Fundação do Software
-# Livre(FSF) Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-#
-#
 
 
 from scriptLattes.geradorDePaginasWeb import *
 from scriptLattes.util import similaridade_entre_cadeias
 
+
 class ArtigoEmPeriodico:
+    tipo = "Artigo em periódico"
     item = None  # dado bruto
     idMembro = None
-    # qualis = None
-    # qualissimilar = None
 
     # doi = None
     # relevante = None
@@ -60,8 +38,6 @@ class ArtigoEmPeriodico:
         self.numero = ''
         self.ano = ''
         self.issn = ''
-        self.qualis = None
-        self.qualissimilar = None
 
         if not partesDoItem=='':
             # partesDoItem[0]: Numero (NAO USADO)
@@ -223,12 +199,30 @@ class ArtigoEmPeriodico:
         s+= 'issn: ' + self.issn + ', ' if not self.issn == ''    else ''
         s+= str(self.ano) + '.'         if str(self.ano).isdigit() else '.'
 
-        if not self.doi=='':
-            s+= ' <a href="'+self.doi+'" target="_blank" style="PADDING-RIGHT:4px;"><img border=0 src="doi.png"></a>'
+        if self.doi:
+            s += (
+                f'<a href="{self.doi}" target="_blank" '
+                'style="margin-left:4px; text-decoration:none; '
+                'font-size:0.7em; background-color:#121212; color:#FFFFFF; '
+                'padding:0 4px; border-radius:2px; vertical-align:middle;">'
+                '[doi]'
+                '</a>'
+            )
 
         s += menuHTMLdeBuscaPB(self.titulo)
-        s += formata_qualis(self.qualis, self.qualissimilar)
         return s
+
+
+    def json(self):
+        return {
+            "Autores": self.autores,
+            "Título": self.titulo,
+            "Veículo": self.revista,
+            "Volume": self.volume if self.volume else None,
+            "Páginas": self.paginas if self.paginas else None,
+            "ISSN": self.issn if self.issn else None,
+            "DOI": self.doi if self.doi else None,
+        }
 
 
     def ris(self):
@@ -255,10 +249,6 @@ class ArtigoEmPeriodico:
         return s
 
     def csv(self, nomeCompleto=""):
-        if self.qualis == None:
-            self.qualis = ''
-        if self.qualissimilar == None:
-            self.qualissimilar = ''
         s = "artigoEmPeriodico\t"
 
         #if type(nomeCompleto) == bytes:

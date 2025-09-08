@@ -1,31 +1,13 @@
 #!/usr/bin/python
 # encoding: utf-8
-#
-#
-# scriptLattes
-# http://scriptlattes.sourceforge.net/
-#
-#
-# Este programa é um software livre; você pode redistribui-lo e/ou 
-# modifica-lo dentro dos termos da Licença Pública Geral GNU como 
-# publicada pela Fundação do Software Livre (FSF); na versão 2 da 
-# Licença, ou (na sua opinião) qualquer versão.
-#
-# Este programa é distribuído na esperança que possa ser util, 
-# mas SEM NENHUMA GARANTIA; sem uma garantia implicita de ADEQUAÇÂO a qualquer
-# MERCADO ou APLICAÇÃO EM PARTICULAR. Veja a
-# Licença Pública Geral GNU para maiores detalhes.
-#
-# Você deve ter recebido uma cópia da Licença Pública Geral GNU
-# junto com este programa, se não, escreva para a Fundação do Software
-# Livre(FSF) Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-#
-#
+
 
 from scriptLattes.geradorDePaginasWeb import *
 from scriptLattes.util import similaridade_entre_cadeias
 
+
 class ArtigoAceito:
+    tipo = "Artigo aceito"
     item = None # dado bruto
     idMembro = None
     qualis = None
@@ -164,15 +146,41 @@ class ArtigoAceito:
         s+= 'p. ' + self.paginas + ', ' if not self.paginas=='' else ''
         s+= str(self.ano) + '. '         if str(self.ano).isdigit() else '. '
 
-        if not self.doi=='':
-            s+= '<a href="'+self.doi+'" target="_blank" style="PADDING-RIGHT:4px;"><img border=0 src="doi.png"></a>' 
+        if self.doi:
+            s += (
+                f'<a href="{self.doi}" target="_blank" '
+                'style="margin-left:4px; text-decoration:none; '
+                'font-size:0.7em; background-color:#121212; color:#FFFFFF; '
+                'padding:0 4px; border-radius:2px; vertical-align:middle;">'
+                '[doi]'
+                '</a>'
+            )
 
         s+= menuHTMLdeBuscaPB(self.titulo)
         s+= formata_qualis(self.qualis, self.qualissimilar)
         return s
 
 
+    def json(self):
+        def nv(x):
+            return x if x not in (None, '', []) else None
 
+        # normalizar DOI
+        doi = nv(getattr(self, "doi", None))
+        if doi:
+            d = str(doi).strip()
+            if d.lower().startswith("doi:"):
+                d = d[4:].strip()
+            doi = d
+
+        return {
+            "Autores": nv(self.autores),
+            "Título": nv(self.titulo),
+            "Veículo": nv(self.revista),
+            "Volume": nv(self.volume),
+            "Páginas": nv(self.paginas),
+            "DOI": doi,
+        }
 
     # ------------------------------------------------------------------------ #
     def __str__(self):

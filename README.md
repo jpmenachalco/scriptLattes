@@ -4,6 +4,9 @@ O CNPq realiza um enérgico trabalho na integração de bases de currículos aca
 O scriptLattes é um script GNU-GPL desenvolvido para a extração e compilação automática de: (1) produções bibliográficas, (2) produções técnicas, (3) produções artísticas, (4) orientações, (5) projetos de pesquisa, (6) prêmios e títulos, e (7) grafo de colaborações de um conjunto de pesquisadores cadastrados na plataforma Lattes. Associações de Qualis para as produções acadêmicas publicadas em Congressos e Revistas também são considerados.
 
 O scriptLattes baixa automaticamente os currículos Lattes em formato HTML (livremente disponíveis na rede) de um grupo de pessoas de interesse, compila as listas de produções, tratando apropriadamente as produções duplicadas e similares. São geradas páginas HTML com listas de produções e orientações separadas por tipo e colocadas em ordem cronológica invertida. Adicionalmente são criadas automaticamente vários grafos (redes) de co-autoria entre os membros do grupo de interesse e um mapa de geolocalização dos membros e alunos (de pós-doutorado, doutorado e mestrado) com orientação concluída. Os relatórios gerados permitem avaliar, analisar ou documentar a produção de grupos de pesquisa. Este projeto de software livre foi idealizado por Jesús P. Mena-Chalco e Roberto M. Cesar-Jr em 2005 (IME/USP).
+
+O scriptLattes atualmente permite filtrar as produções científicas usando termos de pesquisa (Veja os exemplo teste-03).
+
 ## Pré-requisitos
 - Certifique-se de ter o Python 3 instalado no seu computador. 
 Se não tiver, você pode baixá-lo em [python.org](https://www.python.org/downloads/).

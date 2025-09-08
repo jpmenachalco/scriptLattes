@@ -1,0 +1,81 @@
+saúde AND materna*
+saúde AND da* AND gestant*
+saúde AND da* AND mulher*
+cuidad* AND materna*
+atenção AND pré-natal*
+pré-natal*
+assistênc* AND à AND gestant*
+mortal* AND materna*
+morbi-mortal* AND materna*
+obstetr*
+cuidad* AND obstétric*
+complicaç* AND da* AND gravidez*
+
+
+saúde AND infantil*
+saúde AND da* AND crianç*
+assistênc* AND à AND crianç*
+cuidad* AND pediátric*
+pediatr*
+mortal* AND infantil*
+crescimento AND infantil*
+desenvolviment* AND infantil*
+doenç* AND infantil*
+nutriç* AND infantil*
+primeira* AND infânci*
+neonatolog*
+
+
+aleit* AND materna*
+amamentaç*
+leit* AND materna*
+alimentaç* AND complementar*
+desmam*
+nutriç* AND materna*
+nutriç* AND infantil*
+desnutriç* AND infantil*
+alimentaç* AND na* AND infânci*
+
+
+planejament* AND familiar*
+educaç* AND em AND saúde AND para AND gestant*
+víncul* AND mã* AND beb*
+rede* AND de* AND apoi* AND familiar*
+papel* AND do* AND pai*
+cuidad* AND parental*
+cuidad* AND familiar*
+apoi* AND à* AND maternidad*
+polític* AND de* AND atenç* AND à* AND famili*
+
+
+atenç* AND primária* AND à* AND saúde
+atenç* AND básica*
+polític* AND de* AND saúde AND da* AND mulher*
+polític* AND de* AND saúde AND da* AND crianç*
+programa* AND pré-natal*
+assistênc* AND ao* AND part*
+part* AND humanizad*
+atenç* AND obstétric*
+acess* AND aos* AND serviços* AND de* AND saúde
+serviços* AND perinata*
+
+
+períod* AND perinatal*
+períod* AND neonatal*
+períod* AND pós-natal*
+primeir* AND mil* AND dia*
+gestaç*
+trabalh* AND de* AND part*
+part*
+puerpér*
+recém-nascid*
+
+
+desenvolviment* AND psicomotor*
+estímul* AND precoc*
+interaç* AND mã* AND beb*
+avaliaç* AND do* AND desenvolviment*
+deficiênc* AND no* AND desenvolviment*
+neurodesenvolviment*
+
+
