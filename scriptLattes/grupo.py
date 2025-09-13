@@ -105,7 +105,7 @@ class Grupo:
         if self.obterParametro('global-identificar_producoes_por_termos'):
             # carregamos a lista de termos
             entrada = buscarArquivo(self.obterParametro('global-arquivo_de_termos_de_busca'))
-            for linha in fileinput.input(entrada):
+            for linha in fileinput.input(entrada, openhook=fileinput.hook_encoded("utf-8-sig")):
                 linha = linha.replace("\r", "")
                 linha = linha.replace("\n", "")
 
