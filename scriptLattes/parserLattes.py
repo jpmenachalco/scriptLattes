@@ -13,6 +13,10 @@ from .producoesUnitarias.areaDeAtuacao import *
 from .producoesUnitarias.idioma import *
 from .producoesUnitarias.premioOuTitulo import *
 from .producoesUnitarias.projetoDePesquisa import *
+from .producoesUnitarias.projetoDeExtensao import *
+from .producoesUnitarias.projetoDeDesenvolvimento import *
+from .producoesUnitarias.linhaDePesquisa import *
+from .producoesUnitarias.atuacaoProfissional import *
 
 from .producoesBibliograficas.artigoEmPeriodico import *
 from .producoesBibliograficas.livroPublicado import *
@@ -39,7 +43,14 @@ from .orientacoes.orientacaoEmAndamento import *
 from .orientacoes.orientacaoConcluida import *
 
 from .eventos.organizacaoDeEvento import *
+from .eventos.organizacaoDeEvento import *
 from .eventos.participacaoEmEvento import *
+
+from .patentesRegistros.patente import *
+from .patentesRegistros.programaComputador import *
+from .patentesRegistros.desenhoIndustrial import *
+
+from .producoesUnitarias.participacaoEmBanca import *
 
 sys.tracebacklimit = 0
 
@@ -100,9 +111,12 @@ class ParserLattes(HTMLParser):
     achouNomeEmCitacoes = None
     achouFormacaoAcademica = None
     achouProjetoDePesquisa = None
+    achouProjetoDeExtensao = None
+    achouProjetoDeDesenvolvimento = None
     achouAreaDeAtuacao = None
     achouIdioma = None
     achouPremioOuTitulo = None
+    achouLinhaDePesquisa = None
 
     achouArtigoEmPeriodico = None
     achouLivroPublicado = None
@@ -142,17 +156,25 @@ class ParserLattes(HTMLParser):
     achouOutroTipoDeOrientacao = None
 
     achouParticipacaoEmEvento = None
+    achouParticipacaoEmEvento = None
     achouOrganizacaoDeEvento = None
+
+    achouParticipacaoBancaTrabalho = None
+    achouParticipacaoBancaComissao = None
 
     procurarCabecalho = None
     partesDoItem = []
 
     listaIDLattesColaboradores = []
     listaFormacaoAcademica = []
+    listaAtuacaoProfissional = []
     listaProjetoDePesquisa = []
+    listaProjetoDeExtensao = []
+    listaProjetoDeDesenvolvimento = []
     listaAreaDeAtuacao = []
     listaIdioma = []
     listaPremioOuTitulo = []
+    listaLinhaDePesquisa = []
 
     listaArtigoEmPeriodico = []
     listaLivroPublicado = []
@@ -199,7 +221,11 @@ class ParserLattes(HTMLParser):
 
     # Eventos
     listaParticipacaoEmEvento = []
+    listaParticipacaoEmEvento = []
     listaOrganizacaoDeEvento = []
+
+    listaParticipacaoEmBancaTrabalho = []
+    listaParticipacaoEmBancaComissao = []
 
     # auxiliares
     doi = ''
@@ -223,10 +249,14 @@ class ParserLattes(HTMLParser):
         self.issn = ''
         self.listaIDLattesColaboradores = []
         self.listaFormacaoAcademica = []
+        self.listaAtuacaoProfissional = []
         self.listaProjetoDePesquisa = []
+        self.listaProjetoDeExtensao = []
+        self.listaProjetoDeDesenvolvimento = []
         self.listaAreaDeAtuacao = []
         self.listaIdioma = []
         self.listaPremioOuTitulo = []
+        self.listaLinhaDePesquisa = []
 
         self.listaArtigoEmPeriodico = []
         self.listaLivroPublicado = []
@@ -270,7 +300,15 @@ class ParserLattes(HTMLParser):
         self.listaOCOutroTipoDeOrientacao = []
 
         self.listaParticipacaoEmEvento = []
+        self.listaParticipacaoEmEvento = []
         self.listaOrganizacaoDeEvento = []
+
+        self.listaParticipacaoEmBancaTrabalho = []
+        self.listaParticipacaoEmBancaComissao = []
+
+        self.achouMembroDeCorpoEditorial = 0
+        self.achouRevisorDePeriodico = 0
+        self.achouOutraProducaoArtisticaCultural = 0
 
 
         # inicializacao para evitar a busca exaustiva de algumas palavras-chave
@@ -282,6 +320,9 @@ class ParserLattes(HTMLParser):
         self.relevante = 0
         self.idOrientando = ''
         self.complemento = ''
+        self.ultimaInstituicao = ''
+        self.currentTagIsInstBack = False
+        self.achouAtuacaoProfissional = 0
 
         # contornamos alguns erros do HTML da Plataforma Lattes
         cvLattesHTML = cvLattesHTML.replace("<![CDATA[","")
@@ -362,7 +403,12 @@ class ParserLattes(HTMLParser):
                     break
 
             for name, value in attributes:
-                if name=='class' and (value=='transform' or value=='layout-cell-pad-5' or value=='layout-cell-pad-6' or value=='layout-cell layout-cell-11'): #update on Lattes HTML format 19/04/2024
+                if name=='class' and value=='inst_back' and self.achouAtuacaoProfissional:
+                    self.currentTagIsInstBack = True
+                    self.salvarParte1 = 0
+                    self.salvarParte2 = 0
+
+                if name=='class' and (value=='transform' or value=='layout-cell-pad-5' or value=='layout-cell-pad-6' or value=='layout-cell layout-cell-11' or value=='inst_back' or 'layout-cell-12' in value): #update on Lattes HTML format 19/04/2024
                     if self.achouNomeEmCitacoes:
                         self.salvarNomeEmCitacoes = 1
                         self.item = ''
@@ -375,13 +421,22 @@ class ParserLattes(HTMLParser):
                         self.salvarEnderecoProfissional = 1
                         self.item = ''
 
+                    if self.achouAtuacaoProfissional and value != 'inst_back':
+                        if not self.salvarParte1:
+                            self.salvarParte1 = 1
+                            self.item = ''
+                        else:
+                            if not self.salvarParte2:
+                                self.salvarParte2 = 1
+                                self.item = ''
+
                     if self.salvarParte1:
                         self.salvarParte1 = 0
                         self.salvarParte2 = 1
 
                 if name=='class' and (value=='layout-cell-pad-5 text-align-right' or value=='layout-cell-pad-6 text-align-right'): #update on Lattes HTML format 20/03/2024
                     self.item = ''
-                    if self.achouFormacaoAcademica or self.achouAtuacaoProfissional or self.achouProjetoDePesquisa or self.achouMembroDeCorpoEditorial or self.achouRevisorDePeriodico or self.achouAreaDeAtuacao or self.achouIdioma or self.achouPremioOuTitulo or self.salvarItem:
+                    if self.achouFormacaoAcademica or self.achouAtuacaoProfissional or self.achouProjetoDePesquisa or self.achouProjetoDeExtensao or self.achouProjetoDeDesenvolvimento or self.achouMembroDeCorpoEditorial or self.achouRevisorDePeriodico or self.achouAreaDeAtuacao or self.achouIdioma or self.achouPremioOuTitulo or self.achouLinhaDePesquisa or self.salvarItem:
                         self.salvarParte1 = 1
                         self.salvarParte2 = 0
                         if not self.salvarParte3:
@@ -397,21 +452,30 @@ class ParserLattes(HTMLParser):
             self.achouFormacaoAcademica = 0
             self.achouAtuacaoProfissional = 0
             self.achouProjetoDePesquisa = 0
+            self.achouProjetoDeExtensao = 0
+            self.achouProjetoDeDesenvolvimento = 0
             self.achouMembroDeCorpoEditorial = 0
             self.achouRevisorDePeriodico = 0
             self.achouAreaDeAtuacao = 0
             self.achouIdioma = 0
             self.achouPremioOuTitulo = 0
+            self.achouLinhaDePesquisa = 0
             self.achouProducoes = 0
             #self.achouProducaoEmCTA = 0
             #self.achouProducaoTecnica = 0
             #self.achouProducaoArtisticaCultural = 0
+            #self.achouProducaoArtisticaCultural = 0
             self.achouBancas = 0
+            self.achouParticipacaoBancaTrabalho = 0
+            self.achouParticipacaoBancaComissao = 0
             self.achouEventos = 0
             self.achouOrientacoes = 0
             self.achouOutrasInformacoesRelevantes = 0
             self.salvarItem = 0
             self.achouPatenteRegistro = 0
+            self.achouPatente = 0
+            self.achouProgramaComputador = 0
+            self.achouDesenhoIndustrial = 0
 
         if tag=='img':
             if self.salvarFoto:
@@ -506,6 +570,14 @@ class ParserLattes(HTMLParser):
                 self.salvarEnderecoProfissional = 0
                 self.achouEnderecoProfissional = 0
 
+            if self.currentTagIsInstBack:
+                texto_inst = stripBlanks(self.item)
+                # Ignore numbers, labels, and short strings
+                if texto_inst and len(texto_inst) > 3 and not re.match(r'^\d+\.?$', texto_inst) and texto_inst not in ["Vínculo institucional", "Atividades", "Outras informações"]:
+                    self.ultimaInstituicao = texto_inst
+                self.currentTagIsInstBack = False
+                self.item = ''
+
             if (self.salvarParte1 and not self.salvarParte2) or (self.salvarParte2 and not self.salvarParte1) :
                 if len(stripBlanks(self.item))>0:
                     self.partesDoItem.append(stripBlanks(self.item)) # acrescentamos cada celula da linha em uma lista!
@@ -519,8 +591,14 @@ class ParserLattes(HTMLParser):
                         iessimaFormacaoAcademica = FormacaoAcademica(self.partesDoItem) # criamos um objeto com a lista correspondentes às celulas da linha
                         self.listaFormacaoAcademica.append(iessimaFormacaoAcademica) # acrescentamos o objeto de FormacaoAcademica
 
-                    #if self.achouAtuacaoProfissional:
-                    #	print self.partesDoItem
+                    if self.achouAtuacaoProfissional:
+                        if len(self.partesDoItem)>=2:
+                            if self.ultimaInstituicao and not self.partesDoItem[1].startswith(self.ultimaInstituicao):
+                                self.partesDoItem[1] = self.ultimaInstituicao + " " + self.partesDoItem[1]
+                            iessimaAtuacaoProfissional = AtuacaoProfissional(self.idMembro, self.partesDoItem) # criamos um objeto com a lista correspondentes às celulas da linha
+                            self.listaAtuacaoProfissional.append(iessimaAtuacaoProfissional) # acrescentamos o objeto de AtuacaoProfissional
+                        else:
+                            print(f"DEBUG: Ignored AtuacaoProfissional item: {self.partesDoItem}")
 
                     if self.achouProjetoDePesquisa:
                         if not self.salvarParte3:
@@ -531,6 +609,24 @@ class ParserLattes(HTMLParser):
                                 iessimoProjetoDePesquisa = ProjetoDePesquisa(self.idMembro, self.partesDoItem) # criamos um objeto com a lista correspondentes às celulas da linha
                                 self.listaProjetoDePesquisa.append(iessimoProjetoDePesquisa) # acrescentamos o objeto de ProjetoDePesquisa
 
+                    if self.achouProjetoDeExtensao:
+                        if not self.salvarParte3:
+                            self.salvarParte3 = 1
+                        else:
+                            self.salvarParte3 = 0
+                            if len(self.partesDoItem)>=3:
+                                iessimoProjetoDeExtensao = ProjetoDeExtensao(self.idMembro, self.partesDoItem) # criamos um objeto com a lista correspondentes às celulas da linha
+                                self.listaProjetoDeExtensao.append(iessimoProjetoDeExtensao) # acrescentamos o objeto de ProjetoDeExtensao
+
+                    if self.achouProjetoDeDesenvolvimento:
+                        if not self.salvarParte3:
+                            self.salvarParte3 = 1
+                        else:
+                            self.salvarParte3 = 0
+                            if len(self.partesDoItem)>=3:
+                                iessimoProjetoDeDesenvolvimento = ProjetoDeDesenvolvimento(self.idMembro, self.partesDoItem) # criamos um objeto com a lista correspondentes às celulas da linha
+                                self.listaProjetoDeDesenvolvimento.append(iessimoProjetoDeDesenvolvimento) # acrescentamos o objeto de ProjetoDeDesenvolvimento
+
                     #if self.achouMembroDeCorpoEditorial:
                     #	print self.partesDoItem
 
@@ -540,27 +636,52 @@ class ParserLattes(HTMLParser):
                     if self.achouAreaDeAtuacao and len(self.partesDoItem)>=2:
                         iessimaAreaDeAtucao = AreaDeAtuacao(self.partesDoItem) # criamos um objeto com a lista correspondentes às celulas da linha
                         self.listaAreaDeAtuacao.append(iessimaAreaDeAtucao) # acrescentamos o objeto de AreaDeAtuacao
+                        self.partesDoItem = []  # limpamos a lista
+                        # Não resetamos self.achouAreaDeAtuacao = 0 aqui para permitir múltiplas áreas
 
                     if self.achouIdioma and len(self.partesDoItem)>=2:
                         iessimoIdioma = Idioma(self.partesDoItem) # criamos um objeto com a lista correspondentes às celulas da linha
                         self.listaIdioma.append(iessimoIdioma) # acrescentamos o objeto de Idioma
+                        self.partesDoItem = []  # limpamos a lista
+                        # Não resetamos self.achouIdioma = 0 aqui para permitir múltiplos idiomas
 
                     if self.achouPremioOuTitulo and len(self.partesDoItem)>=2:
                         iessimoPremio = PremioOuTitulo(self.idMembro, self.partesDoItem) # criamos um objeto com a lista correspondentes às celulas da linha
                         self.listaPremioOuTitulo.append(iessimoPremio) # acrescentamos o objeto de PremioOuTitulo
+                        self.partesDoItem = []  # limpamos a lista
+                        self.achouPremioOuTitulo = 0
+
+                    if self.achouLinhaDePesquisa and len(self.partesDoItem)>=1:
+                        # Verifica se é apenas um objetivo para a linha anterior
+                        if (len(self.partesDoItem) == 1 and 
+                            self.partesDoItem[0].startswith('Objetivo:') and 
+                            len(self.listaLinhaDePesquisa) > 0):
+                            # É um objetivo para a linha anterior
+                            objetivo_texto = self.partesDoItem[0].replace('Objetivo:', '').strip()
+                            self.listaLinhaDePesquisa[-1].objetivo = objetivo_texto
+                        else:
+                            # É uma nova linha de pesquisa
+                            iessimaLinhaDePesquisa = LinhaDePesquisa(self.partesDoItem)
+                            # Só adiciona se o nome não for vazio ou None
+                            if iessimaLinhaDePesquisa.nome and iessimaLinhaDePesquisa.nome.strip():
+                                self.listaLinhaDePesquisa.append(iessimaLinhaDePesquisa)
+                        
+                        self.partesDoItem = []  # limpamos a lista
+                        # Não resetamos self.achouLinhaDePesquisa = 0 aqui para permitir múltiplas linhas
 
 
-                        # if self.achouPatenteRegistro:
-                    #	#print "===>>>> PROCESSANDO PATENTE e REGISTRO"
-                    #	if self.achouPatente:
-                    #		iessimoItem = Patente(self.idMembro, self.partesDoItem, self.relevante)
-                    #		self.listaPatente.append(iessimoItem)
-                    #	if self.achouProgramaComputador:
-                    #		iessimoItem = ProgramaComputador(self.idMembro, self.partesDoItem, self.relevante)
-                    #		self.listaProgramaComputador.append(iessimoItem)
-                    #	if self.achouDesenhoIndustrial:
-                    #		iessimoItem = DesenhoIndustrial(self.idMembro, self.partesDoItem, self.relevante)
-                    #		self.listaDesenhoIndustrial.append(iessimoItem)
+
+                        if self.achouPatenteRegistro:
+                            #print "===>>>> PROCESSANDO PATENTE e REGISTRO"
+                            if self.achouPatente:
+                                iessimoItem = Patente(self.idMembro, self.partesDoItem, self.relevante)
+                                self.listaPatente.append(iessimoItem)
+                            if self.achouProgramaComputador:
+                                iessimoItem = ProgramaComputador(self.idMembro, self.partesDoItem, self.relevante)
+                                self.listaProgramaComputador.append(iessimoItem)
+                            if self.achouDesenhoIndustrial:
+                                iessimoItem = DesenhoIndustrial(self.idMembro, self.partesDoItem, self.relevante)
+                                self.listaDesenhoIndustrial.append(iessimoItem)
 
                     if self.achouProducoes:
                         if self.achouProducaoEmCTA:
@@ -660,7 +781,12 @@ class ParserLattes(HTMLParser):
                                 self.listaProducaoArtistica.append(iessimoItem)
 
 
-                    #if self.achouBancas:
+                    if self.achouBancas:
+                        if self.achouParticipacaoBancaTrabalho:
+                            self.listaParticipacaoEmBancaTrabalho.append(ParticipacaoEmBanca(self.idMembro, self.partesDoItem))
+                        
+                        if self.achouParticipacaoBancaComissao:
+                            self.listaParticipacaoEmBancaComissao.append(ParticipacaoEmBanca(self.idMembro, self.partesDoItem))
 
                     if self.achouEventos:
                         if self.achouParticipacaoEmEvento:
@@ -731,9 +857,9 @@ class ParserLattes(HTMLParser):
         dado = stripBlanks(dado)
 
         if self.salvarAtualizacaoCV:
-            data = re.findall('Última atualização do currículo em (\d{2}/\d{2}/\d{4})', dado)
-            if len(data)>0: # se a data de atualizacao do CV for identificada
-                self.atualizacaoCV = stripBlanks(data[0])
+            dado_list = re.findall('Última atualização do currículo em (\d{2}/\d{2}/\d{4})', dado)
+            if len(dado_list)>0: # se a data de atualizacao do CV for identificada
+                self.atualizacaoCV = stripBlanks(dado_list[0])
                 self.salvarAtualizacaoCV = 0
 
         if self.procurarCabecalho:
@@ -743,10 +869,14 @@ class ParserLattes(HTMLParser):
                 self.achouEndereco = 1
             if 'Formação acadêmica/titulação'==dado:
                 self.achouFormacaoAcademica = 1
-            if 'Atuação Profissional'==dado:
+            if 'Atuação Profissional'==dado or 'AtuaÃ§Ã£o Profissional'==dado:
                 self.achouAtuacaoProfissional = 1
             if 'Projetos de pesquisa'==dado:
                 self.achouProjetoDePesquisa = 1
+            if 'Projetos de extensão'==dado:
+                self.achouProjetoDeExtensao = 1
+            if 'Projetos de desenvolvimento'==dado:
+                self.achouProjetoDeDesenvolvimento = 1
             if 'Membro de corpo editorial'==dado:
                 self.achouMembroDeCorpoEditorial = 1
             if 'Revisor de periódico'==dado:
@@ -755,6 +885,8 @@ class ParserLattes(HTMLParser):
                 self.achouAreaDeAtuacao = 1
             if 'Idiomas'==dado:
                 self.achouIdioma = 1
+            if 'Linhas de pesquisa'==dado:
+                self.achouLinhaDePesquisa = 1
             if 'Prêmios e títulos'==dado:
                 self.achouPremioOuTitulo = 1
             if 'Produções'==dado:  # !---
@@ -1034,7 +1166,14 @@ class ParserLattes(HTMLParser):
 
         if self.achouBancas:
             if 'Participação em bancas de trabalhos de conclusão'==dado:
-                self.salvarItem = 0
+                self.salvarItem = 1
+                self.achouParticipacaoBancaTrabalho = 1
+                self.achouParticipacaoBancaComissao = 0
+            
+            if 'Participação em bancas de comissões julgadoras'==dado:
+                self.salvarItem = 1
+                self.achouParticipacaoBancaTrabalho = 0
+                self.achouParticipacaoBancaComissao = 1
 
         if self.achouEventos:
             if 'Participação em eventos, congressos, exposições e feiras'==dado:
@@ -1129,6 +1268,18 @@ class ParserLattes(HTMLParser):
             self.identificador16 = id[0]
 
         if self.achouProjetoDePesquisa:
+            if dado.startswith('Projeto certificado pelo(a) coordenador(a)') or dado.startswith('Projeto certificado pela empresa'):
+            #if u'Projeto certificado pelo(a) coordenador(a)' in dado or u'Projeto certificado pela empresa' in dado:
+                self.item = ''
+                self.salvarParte3 = 0
+
+        if self.achouProjetoDeExtensao:
+            if dado.startswith('Projeto certificado pelo(a) coordenador(a)') or dado.startswith('Projeto certificado pela empresa'):
+            #if u'Projeto certificado pelo(a) coordenador(a)' in dado or u'Projeto certificado pela empresa' in dado:
+                self.item = ''
+                self.salvarParte3 = 0
+
+        if self.achouProjetoDeDesenvolvimento:
             if dado.startswith('Projeto certificado pelo(a) coordenador(a)') or dado.startswith('Projeto certificado pela empresa'):
             #if u'Projeto certificado pelo(a) coordenador(a)' in dado or u'Projeto certificado pela empresa' in dado:
                 self.item = ''

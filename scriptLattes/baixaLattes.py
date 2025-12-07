@@ -2,13 +2,28 @@
 # encoding: utf-8
 
 import argparse
-import bs4
 import time
 import os
 import urllib.request, urllib.parse, urllib.error
-from selenium import webdriver
-from selenium.common.exceptions import InvalidArgumentException, TimeoutException, WebDriverException
-from selenium.webdriver.chrome.service import Service
+import platform
+import warnings
+import re
+
+try:
+    import bs4
+except ImportError:
+    bs4 = None
+
+try:
+    from selenium import webdriver
+    from selenium.common.exceptions import InvalidArgumentException, TimeoutException, WebDriverException
+    from selenium.webdriver.chrome.service import Service
+except ImportError:
+    webdriver = None
+    InvalidArgumentException = None
+    TimeoutException = None
+    WebDriverException = None
+    Service = None
 
 import platform
 import warnings
@@ -136,8 +151,15 @@ class LattesRobot:
         return lids
 
     def _extract_lid16(self, page_source):
-        soup = bs4.BeautifulSoup(page_source, 'html.parser')
-        lid16 = soup.find('span', attrs={'style': 'font-weight: bold; color: #326C99;'}).text.encode()
+        if bs4:
+            soup = bs4.BeautifulSoup(page_source, 'html.parser')
+            lid16 = soup.find('span', attrs={'style': 'font-weight: bold; color: #326C99;'}).text.encode()
+        else:
+            match = re.search(r'<span style="font-weight: bold; color: #326C99;">(.*?)</span>', page_source)
+            if match:
+                lid16 = match.group(1).encode()
+            else:
+                return None
 
         if len(lid16) == 16 and lid16.isdigit():
             return lid16
@@ -182,6 +204,11 @@ def baixaCVLattes(id_lattes, diretorio):
     tentativas = 0
 
     while tentativas < max_tentativas:
+        # se passou sem lançar exception, verifica se o arquivo foi salvo
+        destino = os.path.join(diretorio, id_lattes)
+        if os.path.exists(destino):
+            return
+
         try:
             __get_data(id_lattes, diretorio)
         except WebDriverException as e:

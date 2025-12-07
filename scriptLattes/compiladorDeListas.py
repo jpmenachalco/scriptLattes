@@ -2,8 +2,23 @@
 # encoding: utf-8
 
 import re
-import tqdm
-from scipy import sparse
+try:
+    import tqdm
+except ImportError:
+    class tqdm:
+        class tqdm:
+            def __init__(self, total=None):
+                pass
+            def __enter__(self):
+                return self
+            def __exit__(self, exc_type, exc_value, traceback):
+                pass
+            def update(self, n=1):
+                pass
+try:
+    from scipy import sparse
+except ImportError:
+    sparse = None
 from scriptLattes.util import merge_dols
 
 
@@ -84,6 +99,8 @@ class CompiladorDeListas:
 
         self.listaCompletaPremioOuTitulo = {}
         self.listaCompletaProjetoDePesquisa = {}
+        self.listaCompletaProjetoDeExtensao = {}
+        self.listaCompletaProjetoDeDesenvolvimento = {}
 
         self.listaCompletaParticipacaoEmEvento = {}
         self.listaCompletaOrganizacaoDeEvento = {}
@@ -169,6 +186,11 @@ class CompiladorDeListas:
                 # self.listaCompletaProjetoDePesquisa           = self.compilarListaDeProjetos(membro.listaProjetoDePesquisa, self.listaCompletaProjetoDePesquisa)
                 self.listaCompletaProjetoDePesquisa = self.compilarLista(membro.listaProjetoDePesquisa,
                                                                          self.listaCompletaProjetoDePesquisa)
+                self.listaCompletaProjetoDeExtensao = self.compilarLista(membro.listaProjetoDeExtensao,
+                                                                         self.listaCompletaProjetoDeExtensao)
+                self.listaCompletaProjetoDeDesenvolvimento = self.compilarLista(membro.listaProjetoDeDesenvolvimento,
+                                                                                self.listaCompletaProjetoDeDesenvolvimento)
+                # Linhas de pesquisa não são compiladas - são individuais por membro
         
                 self.listaCompletaParticipacaoEmEvento = self.compilarLista(membro.listaParticipacaoEmEvento,
                                                                             self.listaCompletaParticipacaoEmEvento)
@@ -434,6 +456,26 @@ class CompiladorDeListas:
             #  - (2) frequencia
 
     def criarMatrizes(self, listaCompleta):
+        if sparse is None:
+            class DummyMatrix:
+                def __init__(self, shape):
+                    self.shape = shape
+                def __getitem__(self, key):
+                    return 0
+                def __setitem__(self, key, value):
+                    pass
+                def sum(self, axis=0):
+                    return [0] * self.shape[0]
+                def copy(self):
+                    return self
+                def __iadd__(self, other):
+                    return self
+            
+            matriz1 = DummyMatrix((self.grupo.numeroDeMembros(), self.grupo.numeroDeMembros()))
+            matriz2 = DummyMatrix((self.grupo.numeroDeMembros(), self.grupo.numeroDeMembros()))
+            listaDeColaboracoes = [{} for _ in range(self.grupo.numeroDeMembros())]
+            return [matriz1, matriz2, listaDeColaboracoes]
+
         # matriz1 = numpy.zeros((self.grupo.numeroDeMembros(), self.grupo.numeroDeMembros()), dtype=numpy.int32)
         # matriz2 = numpy.zeros((self.grupo.numeroDeMembros(), self.grupo.numeroDeMembros()), dtype=numpy.float32)
         matriz1 = sparse.lil_matrix((self.grupo.numeroDeMembros(), self.grupo.numeroDeMembros()))
@@ -489,6 +531,26 @@ class CompiladorDeListas:
         return lista1
 
     def uniaoDeMatrizesDeColaboracao(self):
+        if sparse is None:
+            class DummyMatrix:
+                def __init__(self, shape):
+                    self.shape = shape
+                def __getitem__(self, key):
+                    return 0
+                def __setitem__(self, key, value):
+                    pass
+                def sum(self, axis=0):
+                    return [0] * self.shape[0]
+                def copy(self):
+                    return self
+                def __iadd__(self, other):
+                    return self
+            
+            matriz1 = DummyMatrix((self.grupo.numeroDeMembros(), self.grupo.numeroDeMembros()))
+            matriz2 = DummyMatrix((self.grupo.numeroDeMembros(), self.grupo.numeroDeMembros()))
+            colaboracoes = [[] for _ in range(self.grupo.numeroDeMembros())]
+            return [matriz1, matriz2, colaboracoes]
+
         ##matriz1 = numpy.zeros((self.grupo.numeroDeMembros(), self.grupo.numeroDeMembros()), dtype=numpy.int32)
         ##matriz2 = numpy.zeros((self.grupo.numeroDeMembros(), self.grupo.numeroDeMembros()), dtype=numpy.float32)
         matriz1 = sparse.lil_matrix((self.grupo.numeroDeMembros(), self.grupo.numeroDeMembros()))

@@ -2,13 +2,20 @@
 # -*- coding: utf-8 -*-
 
 import os
-import networkx as nx
+try:
+    import networkx as nx
+except ImportError:
+    nx = None
 
 class GrafoDeColaboracoes:
     def __init__(self, grupo):
         self.grupo = grupo
 
     def criar_grafo_com_pesos(self):
+        if nx is None:
+            print("[AVISO] NetworkX não instalado. Grafo de colaborações não será gerado.")
+            return None
+
         # Atribui cores hexadecimais aos membros
         for membro in self.grupo.listaDeMembros:
             if len(self.grupo.listaDeRotulos) == 1:

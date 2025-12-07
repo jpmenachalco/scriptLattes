@@ -7,8 +7,13 @@ import os
 import re
 import json
 from . import membro
-from networkx.readwrite import json_graph
-import networkx as nx
+from . import membro
+try:
+    from networkx.readwrite import json_graph
+    import networkx as nx
+except ImportError:
+    json_graph = None
+    nx = None
 import unicodedata
 
 # SVG inline representando um mini-grafo de coautoria
@@ -926,6 +931,9 @@ class GeradorDePaginasWeb:
 
 
     def gerarPaginaDeGrafosDeColaboracoes(self):
+        if nx is None:
+            print("[AVISO] NetworkX não instalado. Grafo de colaborações não será gerado.")
+            return
         # 1) texto introdutório (monta lista de tipos incluídos)
         lista = ''
         if self.grupo.obterParametro('grafo-incluir_artigo_em_periodico'):
@@ -980,7 +988,7 @@ class GeradorDePaginasWeb:
     
         # 3) grafo -> JSON (para injetar no JS)
         G = self.grupo.grafoDeColaboracoes
-        from networkx.readwrite import json_graph
+        # from networkx.readwrite import json_graph
         import json
         data = json_graph.node_link_data(G)
         graph_js = json.dumps(data, ensure_ascii=False)

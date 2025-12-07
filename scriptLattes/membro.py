@@ -34,10 +34,14 @@ class Membro:
     diretorioCache = ''  # diretorio de armazento de CVs (útil para extensas listas de CVs)
 
     listaFormacaoAcademica = []
+    listaAtuacaoProfissional = []
     listaProjetoDePesquisa = []
+    listaProjetoDeExtensao = []
+    listaProjetoDeDesenvolvimento = []
     listaAreaDeAtuacao = []
     listaIdioma = []
     listaPremioOuTitulo = []
+    listaLinhaDePesquisa = []
 
     listaIDLattesColaboradores = []
     listaIDLattesColaboradoresUnica = []
@@ -93,6 +97,10 @@ class Membro:
     listaParticipacaoEmEvento = []
     listaOrganizacaoDeEvento = []
 
+    # Bancas
+    listaParticipacaoEmBancaTrabalho = []
+    listaParticipacaoEmBancaComissao = []
+
     rotuloCorFG = ''
     rotuloCorBG = ''
 
@@ -127,7 +135,7 @@ class Membro:
 
     def criarListaDePeriodos(self, periodoDoMembro):
         self.listaPeriodo = []
-        periodoDoMembro = re.sub('\s+', '', periodoDoMembro)
+        periodoDoMembro = re.sub(r'\s+', '', periodoDoMembro)
 
         if not periodoDoMembro:  # se nao especificado o periodo, entao aceitamos todos os items do CV Lattes
             self.listaPeriodo = [[0, 10000]]
@@ -191,10 +199,14 @@ class Membro:
 
         self.listaIDLattesColaboradores = parser.listaIDLattesColaboradores
         self.listaFormacaoAcademica = parser.listaFormacaoAcademica
+        self.listaAtuacaoProfissional = parser.listaAtuacaoProfissional
         self.listaProjetoDePesquisa = parser.listaProjetoDePesquisa
+        self.listaProjetoDeExtensao = parser.listaProjetoDeExtensao
+        self.listaProjetoDeDesenvolvimento = parser.listaProjetoDeDesenvolvimento
         self.listaAreaDeAtuacao = parser.listaAreaDeAtuacao
         self.listaIdioma = parser.listaIdioma
         self.listaPremioOuTitulo = parser.listaPremioOuTitulo
+        self.listaLinhaDePesquisa = parser.listaLinhaDePesquisa
         self.listaIDLattesColaboradoresUnica = set(self.listaIDLattesColaboradores)
 
         # Produção bibliográfica
@@ -247,6 +259,10 @@ class Membro:
         # Eventos
         self.listaParticipacaoEmEvento = parser.listaParticipacaoEmEvento
         self.listaOrganizacaoDeEvento = parser.listaOrganizacaoDeEvento
+
+        # Bancas
+        self.listaParticipacaoEmBancaTrabalho = parser.listaParticipacaoEmBancaTrabalho
+        self.listaParticipacaoEmBancaComissao = parser.listaParticipacaoEmBancaComissao
 
         # -----------------------------------------------------------------------------------------
         nomePrimeiraGrandeArea = ""
@@ -321,9 +337,14 @@ class Membro:
 
         self.listaPremioOuTitulo = self.filtrarItems(self.listaPremioOuTitulo)
         self.listaProjetoDePesquisa = self.filtrarItems(self.listaProjetoDePesquisa)
+        self.listaProjetoDeExtensao = self.filtrarItems(self.listaProjetoDeExtensao)
+        self.listaProjetoDeDesenvolvimento = self.filtrarItems(self.listaProjetoDeDesenvolvimento)
 
         self.listaParticipacaoEmEvento = self.filtrarItems(self.listaParticipacaoEmEvento)
         self.listaOrganizacaoDeEvento = self.filtrarItems(self.listaOrganizacaoDeEvento)
+
+        self.listaParticipacaoEmBancaTrabalho = self.filtrarItems(self.listaParticipacaoEmBancaTrabalho)
+        self.listaParticipacaoEmBancaComissao = self.filtrarItems(self.listaParticipacaoEmBancaComissao)
 
 
     def filtrarItems(self, lista):
@@ -406,7 +427,7 @@ class Membro:
                     return 1
 
         else:
-            if not objeto.ano.isdigit():  # se nao for identificado o ano sempre o mostramos na lista
+            if not str(objeto.ano).isdigit():  # se nao for identificado o ano sempre o mostramos na lista
                 objeto.ano = 0
                 return 1
                 #return 0
@@ -516,11 +537,15 @@ class Membro:
             s += "\n    - Patente                                     : " + str(len(self.listaPatente))
             s += "\t    - Projetos de pesquisa                        : " + str(len(self.listaProjetoDePesquisa))
             s += "\n    - Programa de computador                      : " + str(len(self.listaProgramaComputador))
+            s += "\t    - Projetos de extensão                        : " + str(len(self.listaProjetoDeExtensao))
+            s += "\t    - Projetos de desenvolvimento                 : " + str(len(self.listaProjetoDeDesenvolvimento))
             s += "\t    - Prêmios e títulos                           : " + str(len(self.listaPremioOuTitulo))
             s += "\n    - Desenho industrial                          : " + str(len(self.listaDesenhoIndustrial))
             s += "\t    - Participação em eventos                     : " + str(len(self.listaParticipacaoEmEvento))
             s += "\n    - Produção artística/cultural                 : " + str(len(self.listaProducaoArtistica))
             s += "\t    - Organização de eventos                      : " + str(len(self.listaOrganizacaoDeEvento))
+            s += "\n    - Participação em bancas de trabalho          : " + str(len(self.listaParticipacaoEmBancaTrabalho))
+            s += "\t    - Participação em bancas de comissões         : " + str(len(self.listaParticipacaoEmBancaComissao))
             s += "\n"
         """
         return s

@@ -6,7 +6,10 @@ import shutil
 import sys
 import re
 import unicodedata
-from rapidfuzz.distance import Levenshtein
+try:
+    from rapidfuzz.distance import Levenshtein
+except ImportError:
+    Levenshtein = None
 
 
 SEP     = os.path.sep
@@ -191,7 +194,10 @@ def similaridade_entre_cadeias(cadeia1: str, cadeia2: str, qualis: bool = False)
         return 1
 
     # cálculo de distância e ratio
-    distancia = Levenshtein.distance(c1, c2)
+    if Levenshtein:
+        distancia = Levenshtein.distance(c1, c2)
+    else:
+        distancia = distancia_levenshtein(c1, c2)
     max_len   = max(len(c1), len(c2))
     ratio     = 1.0 - distancia / max_len if max_len > 0 else 0.0
 

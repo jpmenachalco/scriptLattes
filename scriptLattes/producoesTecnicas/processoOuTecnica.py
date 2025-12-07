@@ -43,14 +43,6 @@ class ProcessoOuTecnica:
         self.autores = partes[0].strip()
         partes = partes[2]
 
-        aux = re.findall(' \((.*?)\)', partes)
-        if len(aux)>0:
-            self.natureza = aux[-1]
-            partes = partes.rpartition(" (")
-            partes = partes[0]
-        else:
-            self.natureza = ''
-
         aux = re.findall(' ((?:19|20)\d\d)\\b', partes)
         if len(aux)>0:
             self.ano = aux[-1] #.strip().rstrip(".").rstrip(",")
@@ -58,6 +50,14 @@ class ProcessoOuTecnica:
             partes = partes[0]
         else:
             self.ano = ''
+
+        aux = re.findall(' \((.*?)\)', partes)
+        if len(aux)>0:
+            self.natureza = aux[-1]
+            partes = partes.rpartition(" (")
+            partes = partes[0]
+        else:
+            self.natureza = ''
 
         self.titulo = partes.strip().rstrip(".").rstrip(",")
         self.chave = self.autores # chave de comparação entre os objetos

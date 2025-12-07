@@ -37,6 +37,7 @@ def executar_scriptLattes(arquivoConfiguracao):
         novoGrupo.gerarGrafosDeColaboracoes() # obrigatorio
         novoGrupo.gerarPaginasWeb() # obrigatorio
         novoGrupo.gerarArquivosTemporarios() # obrigatorio
+        novoGrupo.gerarArquivosJSONIndividuais() # gerar JSON individual por pesquisador
 
         # copiar css
         copiarArquivos(novoGrupo.obterParametro('global-diretorio_de_saida'))
