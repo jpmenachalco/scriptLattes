@@ -30,6 +30,9 @@ import warnings
 warnings.filterwarnings("ignore")
 
 RESULTS_DIR = os.environ.get('DATA_DIR', 'htmls')
+CHROMEDRIVER_ARGS = os.getenv('CHROMEDRIVE_ARGS').split(' ') \
+    if 'CHROMEDRIVER_ARGS' in os.environ \
+    else ['start-maximized', '--blink-settings=imagesEnabled=false', 'headless']
 URL = 'http://buscatextual.cnpq.br/buscatextual/preview.do?metodo=apresentar&id={0}'
 URL_LATTES_ID10 = 'http://buscatextual.cnpq.br/buscatextual/visualizacv.do?id={0}'
 URL_LATTES_ID16 = 'http://lattes.cnpq.br/{0}'
@@ -66,9 +69,8 @@ class LattesRobot:
 
     def create_driver(self):
         chrome_options = webdriver.ChromeOptions()
-        chrome_options.add_argument("start-maximized")
-        chrome_options.add_argument('--blink-settings=imagesEnabled=false') 
-        chrome_options.add_argument("headless")
+        for arg in CHROMEDRIVER_ARGS:
+            chrome_options.add_argument(arg)
         chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
         chrome_options.add_experimental_option('useAutomationExtension', False)
         chrome_options.add_experimental_option('prefs', {'download.default_directory': self.results_dir})
