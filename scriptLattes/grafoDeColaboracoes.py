@@ -31,7 +31,7 @@ class GrafoDeColaboracoes:
 
         # Cria nós com atributos, cor hex e viz para compatibilidade GEXF
         for i, membro in enumerate(self.grupo.listaDeMembros):
-            peso = int(self.grupo.vetorDeCoAutoria[i])
+            peso = int(self.grupo.vetorDeCoAutoria[i].item())
             if peso > 0 or self.grupo.obterParametro('grafo-mostrar_todos_os_nos_do_grafo'):
                 label = f"{membro.nomeCompleto}"
                 # Converte cor de fundo hex para RGB para viz
