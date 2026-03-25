@@ -820,8 +820,8 @@ class Grupo:
         self.matrizDeFrequenciaNormalizada = self.matrizDeFrequencia.copy()
 
         for i in range(0, self.numeroDeMembros()):
-            if not self.vetorDeCoAutoria[i] == 0:
-                self.matrizDeFrequenciaNormalizada[i, :] /= float(self.vetorDeCoAutoria[i])
+            if not self.vetorDeCoAutoria[i].item() == 0:
+                self.matrizDeFrequenciaNormalizada[i, :] /= float(self.vetorDeCoAutoria[i].item())
 
         # listas de nomes, rotulos e IDs
         self.nomes = list([])
@@ -881,7 +881,7 @@ class Grupo:
                 \n<data key="gender">' + membro.sexo[0].upper() + '</data> \
                 \n<data key="image">' + membro.foto + '</data> \
                 \n<data key="link">' + membro.url + '</data> \
-                \n<data key="pubs">' + str(int(self.vetorDeCoAutoria[i])) + '</data> \
+                \n<data key="pubs">' + str(int(self.vetorDeCoAutoria[i].item())) + '</data> \
                 \n</node>'
 
         N = matriz.shape[0]
