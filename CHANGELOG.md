@@ -2,6 +2,12 @@
 
 Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 
+## [Não lançado]
+
+### Corrigido
+- Extração de todos os registros da seção "Prêmios e títulos", que antes era interrompida após o primeiro item.
+- Testes de regressão para múltiplos prêmios, transição de seção e isolamento entre currículos.
+
 ## [Versão Atual] - 2024-12-06
 
 ### ✨ Adicionado

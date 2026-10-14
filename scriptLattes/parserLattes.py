@@ -649,7 +649,6 @@ class ParserLattes(HTMLParser):
                         iessimoPremio = PremioOuTitulo(self.idMembro, self.partesDoItem) # criamos um objeto com a lista correspondentes às celulas da linha
                         self.listaPremioOuTitulo.append(iessimoPremio) # acrescentamos o objeto de PremioOuTitulo
                         self.partesDoItem = []  # limpamos a lista
-                        self.achouPremioOuTitulo = 0
 
                     if self.achouLinhaDePesquisa and len(self.partesDoItem)>=1:
                         # Verifica se é apenas um objetivo para a linha anterior
